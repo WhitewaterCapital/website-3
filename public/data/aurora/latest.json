@@ -1,0 +1,1070 @@
+{
+  "schema_version": "0.2.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-08-11T01:01:39+00:00",
+  "as_of": "2026-08-07",
+  "model_variant": "mortgage_choice",
+  "disclaimer": "Aurora is a structural macro research model (Sustek housing/mortgage DSGE). Outputs are directional scenario analysis for internal decision-support only \u2014 not forecasts, not investment advice. Shock sizes are normalized to a +1% innovation and responses are linearized, so they scale linearly with shock size.",
+  "steady_state": {
+    "KYrat": 7.060000000231325,
+    "HYrat": 5.279999999447601,
+    "Nfrac": 0.25500000002206397,
+    "MPfrac": 0.18500000001026232,
+    "mortgage_rate_ann": 0.09638944901799928,
+    "gamma": 0.01441392553730917,
+    "calibrated": {
+      "omega": 0.6487860990064802,
+      "xi": 0.5002686081841641,
+      "tauK": 0.33621979385645234,
+      "transfer": 0.4692977073568111
+    },
+    "residual_norm": 9.342135442305562e-10
+  },
+  "scenarios": [
+    {
+      "id": "tfp_boom_+1pct",
+      "kind": "TFP",
+      "label": "Productivity boom",
+      "description": "A +1% positive productivity (TFP) shock. On impact, output, consumption and house prices all rise; the effect decays slowly.",
+      "horizon": 20,
+      "paths": [
+        {
+          "variable": "output",
+          "unit": "pct_dev",
+          "path": [
+            0.996298,
+            0.97641,
+            0.956181,
+            0.9357,
+            0.915049,
+            0.8943,
+            0.87352,
+            0.85277,
+            0.832103,
+            0.811565,
+            0.791201,
+            0.771047,
+            0.751137,
+            0.731499,
+            0.712159,
+            0.693138,
+            0.674456,
+            0.656126,
+            0.638163,
+            0.620577
+          ]
+        },
+        {
+          "variable": "consumption",
+          "unit": "pct_dev",
+          "path": [
+            2.007121,
+            2.025535,
+            2.037876,
+            2.044642,
+            2.046314,
+            2.043344,
+            2.036156,
+            2.025145,
+            2.010682,
+            1.993113,
+            1.972762,
+            1.949929,
+            1.924894,
+            1.897919,
+            1.869244,
+            1.839096,
+            1.807682,
+            1.775194,
+            1.741809,
+            1.707692
+          ]
+        },
+        {
+          "variable": "house_price",
+          "unit": "pct_dev",
+          "path": [
+            1.425289,
+            1.414591,
+            1.399149,
+            1.37952,
+            1.35622,
+            1.329722,
+            1.300464,
+            1.268845,
+            1.235234,
+            1.199966,
+            1.163349,
+            1.125662,
+            1.08716,
+            1.048073,
+            1.008612,
+            0.968964,
+            0.929299,
+            0.889769,
+            0.85051,
+            0.811641
+          ]
+        },
+        {
+          "variable": "mortgage_payment",
+          "unit": "pct_dev",
+          "path": [
+            -0.043075,
+            0.036284,
+            0.11679,
+            0.197901,
+            0.279131,
+            0.360043,
+            0.440244,
+            0.519388,
+            0.597165,
+            0.673305,
+            0.747569,
+            0.819753,
+            0.889677,
+            0.957192,
+            1.022172,
+            1.084513,
+            1.14413,
+            1.200961,
+            1.254956,
+            1.306084
+          ]
+        },
+        {
+          "variable": "wage",
+          "unit": "pct_dev",
+          "path": [
+            1.001461,
+            0.981767,
+            0.961701,
+            0.941357,
+            0.920817,
+            0.900158,
+            0.879446,
+            0.858744,
+            0.838107,
+            0.817583,
+            0.797218,
+            0.77705,
+            0.757112,
+            0.737437,
+            0.718048,
+            0.698971,
+            0.680223,
+            0.661821,
+            0.643779,
+            0.626108
+          ]
+        },
+        {
+          "variable": "mortgage_rate",
+          "unit": "bps",
+          "path": [
+            0.0,
+            0.045443,
+            0.084571,
+            0.117914,
+            0.145959,
+            0.169158,
+            0.187927,
+            0.202651,
+            0.213685,
+            0.221357,
+            0.225971,
+            0.227805,
+            0.227118,
+            0.224148,
+            0.219115,
+            0.212222,
+            0.203655,
+            0.193588,
+            0.182179,
+            0.169576
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "variable": "output",
+          "impact": 0.996298,
+          "peak": 0.996298,
+          "peak_quarter": 1,
+          "reverses": false
+        },
+        {
+          "variable": "consumption",
+          "impact": 2.007121,
+          "peak": 2.046314,
+          "peak_quarter": 5,
+          "reverses": false
+        },
+        {
+          "variable": "house_price",
+          "impact": 1.425289,
+          "peak": 1.425289,
+          "peak_quarter": 1,
+          "reverses": false
+        },
+        {
+          "variable": "mortgage_payment",
+          "impact": -0.043075,
+          "peak": 1.306084,
+          "peak_quarter": 20,
+          "reverses": true
+        },
+        {
+          "variable": "wage",
+          "impact": 1.001461,
+          "peak": 1.001461,
+          "peak_quarter": 1,
+          "reverses": false
+        },
+        {
+          "variable": "mortgage_rate",
+          "impact": 0.0,
+          "peak": 0.227805,
+          "peak_quarter": 12,
+          "reverses": false
+        }
+      ],
+      "narrative": "On impact \u2014 output +1.00%, consumption +2.01%, house prices +1.43%; the mortgage rate peaks +0bps over the horizon. For a book like ours: Broadly risk-on and durable \u2014 cyclical and housing-linked exposure benefits; the slow decay means the tailwind persists.",
+      "confidence": "medium"
+    },
+    {
+      "id": "monetary_tighten_+1pct",
+      "kind": "monetary",
+      "label": "Monetary tightening",
+      "description": "A +1% contractionary Taylor-rule shock (policy tightening). On impact, consumption and house prices soften and the mortgage rate climbs; the model shows a medium-term rebound as the shock fades.",
+      "horizon": 20,
+      "paths": [
+        {
+          "variable": "output",
+          "unit": "pct_dev",
+          "path": [
+            0.000637,
+            0.008939,
+            0.017273,
+            0.025557,
+            0.033725,
+            0.041714,
+            0.049474,
+            0.056961,
+            0.064136,
+            0.070969,
+            0.077435,
+            0.083511,
+            0.089184,
+            0.094441,
+            0.099275,
+            0.103679,
+            0.107654,
+            0.1112,
+            0.11432,
+            0.11702
+          ]
+        },
+        {
+          "variable": "consumption",
+          "unit": "pct_dev",
+          "path": [
+            -0.174867,
+            -0.178043,
+            -0.172452,
+            -0.159154,
+            -0.138936,
+            -0.112531,
+            -0.08062,
+            -0.043836,
+            -0.002767,
+            0.042043,
+            0.090088,
+            0.140903,
+            0.194057,
+            0.249152,
+            0.305823,
+            0.363733,
+            0.422573,
+            0.48206,
+            0.541937,
+            0.601967
+          ]
+        },
+        {
+          "variable": "house_price",
+          "unit": "pct_dev",
+          "path": [
+            -0.052607,
+            -0.040774,
+            -0.02355,
+            -0.001697,
+            0.024092,
+            0.053184,
+            0.085006,
+            0.119035,
+            0.154799,
+            0.191872,
+            0.229869,
+            0.268445,
+            0.307291,
+            0.346131,
+            0.38472,
+            0.422842,
+            0.460307,
+            0.496948,
+            0.532621,
+            0.567203
+          ]
+        },
+        {
+          "variable": "mortgage_payment",
+          "unit": "pct_dev",
+          "path": [
+            -0.996959,
+            -1.310462,
+            -1.623005,
+            -1.933656,
+            -2.241578,
+            -2.54602,
+            -2.846309,
+            -3.141845,
+            -3.432099,
+            -3.716601,
+            -3.994942,
+            -4.266766,
+            -4.531765,
+            -4.789679,
+            -5.040287,
+            -5.28341,
+            -5.5189,
+            -5.746645,
+            -5.96656,
+            -6.178589
+          ]
+        },
+        {
+          "variable": "wage",
+          "unit": "pct_dev",
+          "path": [
+            -0.000251,
+            0.007994,
+            0.016314,
+            0.024625,
+            0.032853,
+            0.040936,
+            0.048819,
+            0.056454,
+            0.063801,
+            0.070827,
+            0.077503,
+            0.083806,
+            0.089719,
+            0.095229,
+            0.100324,
+            0.105,
+            0.109253,
+            0.113082,
+            0.116489,
+            0.119479
+          ]
+        },
+        {
+          "variable": "mortgage_rate",
+          "unit": "bps",
+          "path": [
+            0.0,
+            2.500563,
+            4.912268,
+            7.237927,
+            9.48027,
+            11.641948,
+            13.725535,
+            15.733526,
+            17.668344,
+            19.532337,
+            21.32778,
+            23.056879,
+            24.721772,
+            26.324527,
+            27.86715,
+            29.351581,
+            30.779699,
+            32.153322,
+            33.474208,
+            34.744061
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "variable": "output",
+          "impact": 0.000637,
+          "peak": 0.11702,
+          "peak_quarter": 20,
+          "reverses": false
+        },
+        {
+          "variable": "consumption",
+          "impact": -0.174867,
+          "peak": 0.601967,
+          "peak_quarter": 20,
+          "reverses": true
+        },
+        {
+          "variable": "house_price",
+          "impact": -0.052607,
+          "peak": 0.567203,
+          "peak_quarter": 20,
+          "reverses": true
+        },
+        {
+          "variable": "mortgage_payment",
+          "impact": -0.996959,
+          "peak": -6.178589,
+          "peak_quarter": 20,
+          "reverses": false
+        },
+        {
+          "variable": "wage",
+          "impact": -0.000251,
+          "peak": 0.119479,
+          "peak_quarter": 20,
+          "reverses": false
+        },
+        {
+          "variable": "mortgage_rate",
+          "impact": 0.0,
+          "peak": 34.744061,
+          "peak_quarter": 20,
+          "reverses": false
+        }
+      ],
+      "narrative": "On impact \u2014 output +0.00%, consumption -0.17%, house prices -0.05%; the mortgage rate peaks +35bps over the horizon. For a book like ours: Rate-sensitive and housing-linked positions face pressure; favour shorter duration and defensives. Note the model's medium-term rebound \u2014 the drag is front-loaded, not permanent.",
+      "confidence": "medium"
+    },
+    {
+      "id": "housing_supply_+1pct",
+      "kind": "housing",
+      "label": "Housing supply shock",
+      "description": "A +1% shock making housing cheaper to produce (rate of transformation between housing and other goods). House prices dip and consumption of other goods edges up; output impact is small.",
+      "horizon": 20,
+      "paths": [
+        {
+          "variable": "output",
+          "unit": "pct_dev",
+          "path": [
+            -0.000885,
+            0.00752,
+            0.013489,
+            0.017562,
+            0.02017,
+            0.021653,
+            0.02228,
+            0.022264,
+            0.021774,
+            0.02094,
+            0.019866,
+            0.018632,
+            0.0173,
+            0.015917,
+            0.01452,
+            0.013136,
+            0.011785,
+            0.010482,
+            0.009237,
+            0.008056
+          ]
+        },
+        {
+          "variable": "consumption",
+          "unit": "pct_dev",
+          "path": [
+            0.243196,
+            0.240122,
+            0.234745,
+            0.227667,
+            0.219367,
+            0.210222,
+            0.200529,
+            0.19052,
+            0.180378,
+            0.170243,
+            0.160223,
+            0.150398,
+            0.140831,
+            0.131566,
+            0.122634,
+            0.114055,
+            0.105843,
+            0.098004,
+            0.090539,
+            0.083445
+          ]
+        },
+        {
+          "variable": "house_price",
+          "unit": "pct_dev",
+          "path": [
+            -0.255175,
+            -0.137556,
+            -0.047896,
+            0.019659,
+            0.069779,
+            0.106186,
+            0.131847,
+            0.149122,
+            0.159891,
+            0.165643,
+            0.167563,
+            0.166586,
+            0.163453,
+            0.158747,
+            0.152924,
+            0.146344,
+            0.139285,
+            0.131962,
+            0.124542,
+            0.117149
+          ]
+        },
+        {
+          "variable": "mortgage_payment",
+          "unit": "pct_dev",
+          "path": [
+            0.002137,
+            -0.073263,
+            -0.127885,
+            -0.166248,
+            -0.191946,
+            -0.207835,
+            -0.216181,
+            -0.21878,
+            -0.21705,
+            -0.212114,
+            -0.204851,
+            -0.195951,
+            -0.185954,
+            -0.175278,
+            -0.164246,
+            -0.153102,
+            -0.142035,
+            -0.131182,
+            -0.120645,
+            -0.110495
+          ]
+        },
+        {
+          "variable": "wage",
+          "unit": "pct_dev",
+          "path": [
+            0.000349,
+            0.008697,
+            0.014609,
+            0.018626,
+            0.021179,
+            0.022608,
+            0.023183,
+            0.023117,
+            0.022577,
+            0.021697,
+            0.020577,
+            0.0193,
+            0.017926,
+            0.016503,
+            0.015068,
+            0.013647,
+            0.012262,
+            0.010926,
+            0.009649,
+            0.008438
+          ]
+        },
+        {
+          "variable": "mortgage_rate",
+          "unit": "bps",
+          "path": [
+            0.0,
+            -0.004441,
+            -0.00857,
+            -0.012324,
+            -0.015666,
+            -0.018578,
+            -0.021058,
+            -0.023112,
+            -0.024755,
+            -0.026009,
+            -0.026897,
+            -0.027446,
+            -0.027683,
+            -0.027636,
+            -0.027334,
+            -0.026803,
+            -0.026069,
+            -0.025157,
+            -0.024091,
+            -0.022892
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "variable": "output",
+          "impact": -0.000885,
+          "peak": 0.02228,
+          "peak_quarter": 7,
+          "reverses": true
+        },
+        {
+          "variable": "consumption",
+          "impact": 0.243196,
+          "peak": 0.243196,
+          "peak_quarter": 1,
+          "reverses": false
+        },
+        {
+          "variable": "house_price",
+          "impact": -0.255175,
+          "peak": -0.255175,
+          "peak_quarter": 1,
+          "reverses": true
+        },
+        {
+          "variable": "mortgage_payment",
+          "impact": 0.002137,
+          "peak": -0.21878,
+          "peak_quarter": 8,
+          "reverses": false
+        },
+        {
+          "variable": "wage",
+          "impact": 0.000349,
+          "peak": 0.023183,
+          "peak_quarter": 7,
+          "reverses": false
+        },
+        {
+          "variable": "mortgage_rate",
+          "impact": 0.0,
+          "peak": -0.027683,
+          "peak_quarter": 13,
+          "reverses": false
+        }
+      ],
+      "narrative": "On impact \u2014 output -0.00%, consumption +0.24%, house prices -0.26%; the mortgage rate peaks -0bps over the horizon. For a book like ours: Mainly relevant to direct housing/mortgage exposure (softer home values); muted for the broad book.",
+      "confidence": "medium"
+    },
+    {
+      "id": "patience_demand_+1pct",
+      "kind": "discount_factor",
+      "label": "Patience / demand boom",
+      "description": "A +1% discount-factor shock (households turn more patient). A large consumption and house-price boom on impact that then MEAN-REVERTS \u2014 both turn negative later in the horizon.",
+      "horizon": 20,
+      "paths": [
+        {
+          "variable": "output",
+          "unit": "pct_dev",
+          "path": [
+            -0.01534,
+            -0.075857,
+            -0.125212,
+            -0.164785,
+            -0.195808,
+            -0.219384,
+            -0.236496,
+            -0.24802,
+            -0.254734,
+            -0.257333,
+            -0.25643,
+            -0.252572,
+            -0.246241,
+            -0.237861,
+            -0.22781,
+            -0.216418,
+            -0.203973,
+            -0.19073,
+            -0.176909,
+            -0.162702
+          ]
+        },
+        {
+          "variable": "consumption",
+          "unit": "pct_dev",
+          "path": [
+            4.213455,
+            3.361019,
+            2.603677,
+            1.932582,
+            1.339225,
+            0.815904,
+            0.355648,
+            -0.047856,
+            -0.400319,
+            -0.706913,
+            -0.972315,
+            -1.200758,
+            -1.396073,
+            -1.561723,
+            -1.700839,
+            -1.816254,
+            -1.910526,
+            -1.985967,
+            -2.044665,
+            -2.088506
+          ]
+        },
+        {
+          "variable": "house_price",
+          "unit": "pct_dev",
+          "path": [
+            4.229847,
+            3.350884,
+            2.58287,
+            1.913964,
+            1.333496,
+            0.831865,
+            0.400432,
+            0.031428,
+            -0.282131,
+            -0.546521,
+            -0.767379,
+            -0.949765,
+            -1.098217,
+            -1.216807,
+            -1.309182,
+            -1.378605,
+            -1.427999,
+            -1.459974,
+            -1.476862,
+            -1.480741
+          ]
+        },
+        {
+          "variable": "mortgage_payment",
+          "unit": "pct_dev",
+          "path": [
+            1.526857,
+            1.562186,
+            1.53896,
+            1.465549,
+            1.349433,
+            1.197284,
+            1.015041,
+            0.807988,
+            0.580813,
+            0.337674,
+            0.082246,
+            -0.182229,
+            -0.452896,
+            -0.72725,
+            -1.003101,
+            -1.278539,
+            -1.551908,
+            -1.821779,
+            -2.086924,
+            -2.346297
+          ]
+        },
+        {
+          "variable": "wage",
+          "unit": "pct_dev",
+          "path": [
+            0.006055,
+            -0.058474,
+            -0.111413,
+            -0.154182,
+            -0.188052,
+            -0.214158,
+            -0.233512,
+            -0.247019,
+            -0.255483,
+            -0.25962,
+            -0.260065,
+            -0.257382,
+            -0.25207,
+            -0.244571,
+            -0.235274,
+            -0.224522,
+            -0.212617,
+            -0.199821,
+            -0.186366,
+            -0.172452
+          ]
+        },
+        {
+          "variable": "mortgage_rate",
+          "unit": "bps",
+          "path": [
+            0.0,
+            -1.002882,
+            -1.872462,
+            -2.623928,
+            -3.270838,
+            -3.825284,
+            -4.298044,
+            -4.698721,
+            -5.035868,
+            -5.317092,
+            -5.549161,
+            -5.738088,
+            -5.88921,
+            -6.007265,
+            -6.096451,
+            -6.160488,
+            -6.202666,
+            -6.225893,
+            -6.232738,
+            -6.225465
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "variable": "output",
+          "impact": -0.01534,
+          "peak": -0.257333,
+          "peak_quarter": 10,
+          "reverses": false
+        },
+        {
+          "variable": "consumption",
+          "impact": 4.213455,
+          "peak": 4.213455,
+          "peak_quarter": 1,
+          "reverses": true
+        },
+        {
+          "variable": "house_price",
+          "impact": 4.229847,
+          "peak": 4.229847,
+          "peak_quarter": 1,
+          "reverses": true
+        },
+        {
+          "variable": "mortgage_payment",
+          "impact": 1.526857,
+          "peak": -2.346297,
+          "peak_quarter": 20,
+          "reverses": true
+        },
+        {
+          "variable": "wage",
+          "impact": 0.006055,
+          "peak": -0.260065,
+          "peak_quarter": 11,
+          "reverses": true
+        },
+        {
+          "variable": "mortgage_rate",
+          "impact": 0.0,
+          "peak": -6.232738,
+          "peak_quarter": 19,
+          "reverses": false
+        }
+      ],
+      "narrative": "On impact \u2014 output -0.02%, consumption +4.21%, house prices +4.23%; the mortgage rate peaks -6bps over the horizon. For a book like ours: A valuation-led boom that MEAN-REVERTS: momentum up now, give-back later. Don't chase late; watch housing valuations and duration into the reversal.",
+      "confidence": "medium"
+    }
+  ],
+  "regime": {
+    "as_of": "2026-08-07",
+    "label": "Mixed / transitional",
+    "scenario_affinity": {
+      "Restrictive / tightening": 0.22,
+      "Expansion": 0.189,
+      "Housing-driven": 0.141,
+      "Demand / valuation boom": 0.213,
+      "Mixed / transitional": 0.238
+    },
+    "key_indicators": [
+      {
+        "name": "Real policy rate (FF \u2212 core PCE)",
+        "value": 0.34,
+        "z_score": null,
+        "as_of": "2026-07-01"
+      },
+      {
+        "name": "Growth composite (z)",
+        "value": null,
+        "z_score": 0.19,
+        "as_of": "2026-08-07"
+      },
+      {
+        "name": "Inflation composite (z)",
+        "value": null,
+        "z_score": 0.71,
+        "as_of": "2026-08-07"
+      },
+      {
+        "name": "10y-2y curve slope",
+        "value": 0.46,
+        "z_score": -0.58,
+        "as_of": "2026-08-07"
+      },
+      {
+        "name": "Core PCE price index",
+        "value": 3.287,
+        "z_score": 0.95,
+        "as_of": "2026-06-01"
+      },
+      {
+        "name": "Case-Shiller home price",
+        "value": 1.114,
+        "z_score": -0.33,
+        "as_of": "2026-05-01"
+      },
+      {
+        "name": "BAA-10y credit spread",
+        "value": 1.61,
+        "z_score": -1.07,
+        "as_of": "2026-08-06"
+      },
+      {
+        "name": "10y Treasury yield",
+        "value": 4.69,
+        "z_score": 1.64,
+        "as_of": "2026-08-06"
+      },
+      {
+        "name": "30y mortgage rate",
+        "value": 6.69,
+        "z_score": 1.48,
+        "as_of": "2026-08-06"
+      }
+    ],
+    "confidence": "low",
+    "flags": [
+      "2 indicator(s) stale (normal for quarterly data)",
+      "regime signal is weak / transitional"
+    ]
+  },
+  "tilt": {
+    "factors": [
+      {
+        "name": "quality",
+        "lean": "neutral",
+        "rationale": "no dominant regime"
+      }
+    ],
+    "sectors": [],
+    "confidence": "medium"
+  },
+  "nowcast": {
+    "horizon_months": 3,
+    "method": "PCA(4) + Ridge, walk-forward time-series CV; OOS R^2 vs naive mean",
+    "as_of": "2026-08-07",
+    "factors": [
+      {
+        "factor": "Mkt-RF",
+        "expected_return": null,
+        "oos_r2": 0.0098,
+        "hit_rate": 0.67,
+        "fold_oos_r2": [
+          0.0304,
+          -0.0081,
+          0.03,
+          -0.0385,
+          0.0579,
+          -0.0571
+        ],
+        "folds_positive": 3,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      },
+      {
+        "factor": "SMB",
+        "expected_return": null,
+        "oos_r2": -0.1118,
+        "hit_rate": 0.51,
+        "fold_oos_r2": [
+          0.1738,
+          -1.1127,
+          -0.2874,
+          -0.0732,
+          0.0517,
+          0.0523
+        ],
+        "folds_positive": 3,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      },
+      {
+        "factor": "HML",
+        "expected_return": null,
+        "oos_r2": -0.0117,
+        "hit_rate": 0.527,
+        "fold_oos_r2": [
+          -0.014,
+          -0.0452,
+          -0.0156,
+          0.0241,
+          0.0157,
+          -0.0492
+        ],
+        "folds_positive": 2,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      },
+      {
+        "factor": "RMW",
+        "expected_return": null,
+        "oos_r2": -0.0753,
+        "hit_rate": 0.563,
+        "fold_oos_r2": [
+          -0.2296,
+          0.0641,
+          0.0885,
+          0.0548,
+          -0.0084,
+          -0.0299
+        ],
+        "folds_positive": 3,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      },
+      {
+        "factor": "CMA",
+        "expected_return": null,
+        "oos_r2": -0.0344,
+        "hit_rate": 0.437,
+        "fold_oos_r2": [
+          0.0291,
+          -0.167,
+          -0.0015,
+          -0.0129,
+          -0.0054,
+          -0.0799
+        ],
+        "folds_positive": 1,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      },
+      {
+        "factor": "Mom",
+        "expected_return": null,
+        "oos_r2": -0.0121,
+        "hit_rate": 0.59,
+        "fold_oos_r2": [
+          0.0058,
+          0.0375,
+          -0.7962,
+          0.0563,
+          0.0449,
+          -0.0658
+        ],
+        "folds_positive": 4,
+        "n_folds": 6,
+        "skillful": false,
+        "confidence": "insufficient"
+      }
+    ],
+    "summary": "No style factor beats a naive mean forecast out-of-sample at the quarterly horizon \u2014 macro state shows no reliable factor-timing edge. Consistent with the weak-predictability literature; treat all point predictions as no-signal.",
+    "book_read": "For a tech-heavy book (long growth/duration, short value): the data-driven nowcaster does NOT provide a dependable macro edge for timing factor rotations. Lean on the structural regime read and risk discipline instead. The only faint signals \u2014 market and momentum tend mildly positive \u2014 are consistent with staying invested, not with adding leverage.",
+    "confidence": "insufficient"
+  }
+}

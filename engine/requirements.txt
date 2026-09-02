@@ -1,0 +1,9 @@
+# Slice 1 runtime (minimal — kept small so the PIT ingestion runs anywhere).
+requests>=2.31
+duckdb>=0.10
+
+# Used from slice 3 onward (feature engineering, models, stats). Listed now so the
+# environment is ready; slice 1 does not import them.
+pandas>=2.0
+numpy>=1.24
+python-dateutil>=2.8

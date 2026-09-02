@@ -1,0 +1,20 @@
+# Intra / Exitus engine — dependencies.
+#
+# Phase 1 (feature layer + tests) needs only the numeric stack + a price client.
+# Modeling deps (scikit-learn, statsmodels, scipy) are listed but commented until
+# the regime/levels phases import them, so the phase-1 install stays light.
+
+pandas>=2.0
+numpy>=1.24
+python-dateutil>=2.8
+requests>=2.31
+
+# Test runner.
+pytest>=7.4
+
+# Modeling stack.
+scikit-learn>=1.3   # gradient-boosted regime classifier, resampling, metrics
+scipy>=1.10         # optimisation for the Ornstein-Uhlenbeck fit (levels phase)
+
+# --- Later phases (uncomment when the levels phase lands) ---
+# statsmodels>=0.14   # OU / AR(1) estimation, diagnostics

@@ -1,0 +1,350 @@
+{
+  "schema_version": "1.0.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-08-25T15:24:07.873985",
+  "as_of": "2026-08-25",
+  "universe": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "KO",
+    "F"
+  ],
+  "disclaimer": "Research/paper output only. Not investment advice, not a validated alpha model, and not to be used for real-capital decisions. Built on free data with known survivorship and point-in-time limitations.",
+  "securities": [
+    {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "sector": "Electronic Computers",
+      "sic": "3571",
+      "as_of": "2026-08-25",
+      "data_quality": {
+        "has_prices": true,
+        "has_fundamentals": true,
+        "fundamentals_period_end": "2025-09-27",
+        "price_last_close": 310.34,
+        "stale": false,
+        "flags": []
+      },
+      "confidence": "high",
+      "risk": {
+        "ticker": "AAPL",
+        "last_close": 310.34,
+        "n_bars": 5444,
+        "mom_12_1": 0.48494780430581885,
+        "ret_1m": -0.06728778500176347,
+        "realized_vol": 0.31994843988646904,
+        "downside_vol": 0.2381919077941571,
+        "ewma_vol": 0.289187762592865,
+        "max_dd_1y": -0.13798525455110044,
+        "high_52w_ratio": 0.9133492761665329,
+        "spread_bps": 66.26421036332387,
+        "beta_mkt": 1.2181491134147286,
+        "beta_smb": -0.14921848044240987,
+        "beta_hml": -0.24167314238401355,
+        "beta_mom": -0.020147965437063754,
+        "factor_r2": 0.2927343865503965,
+        "idio_vol": 0.20217996239769068,
+        "n_factor_obs": 252
+      },
+      "quality": {
+        "ticker": "AAPL",
+        "sector": "Electronic Computers",
+        "period_end": "2025-09-27",
+        "roa": 0.3117962593356549,
+        "roe": 1.5191298333175105,
+        "gross_margin": 0.4690516410716045,
+        "net_margin": 0.2691506412181824,
+        "fcf_margin": 0.23732882225869315,
+        "leverage": 0.21803747345097024,
+        "rev_growth": 0.06425511782832749,
+        "piotroski_f": 8,
+        "piotroski_max": 9
+      },
+      "valuation": {
+        "market_cap": 4584733508400.0,
+        "pe": 40.931466015534326,
+        "earnings_yield": 0.02443108193633914,
+        "pb": 62.18021114562001,
+        "ps": 11.016730324081305,
+        "fcf_yield": 0.021542582533759555,
+        "ev": 4627127508400.0,
+        "ev_sales": 11.118599552577008,
+        "flags": []
+      }
+    },
+    {
+      "ticker": "MSFT",
+      "name": "MICROSOFT CORP",
+      "sector": "Services-Prepackaged Software",
+      "sic": "7372",
+      "as_of": "2026-08-25",
+      "data_quality": {
+        "has_prices": true,
+        "has_fundamentals": true,
+        "fundamentals_period_end": "2026-06-30",
+        "price_last_close": 487.31,
+        "stale": false,
+        "flags": []
+      },
+      "confidence": "high",
+      "risk": {
+        "ticker": "MSFT",
+        "last_close": 487.31,
+        "n_bars": 5444,
+        "mom_12_1": -0.23819672920368484,
+        "ret_1m": 0.27909785281867205,
+        "realized_vol": 0.4639736482719468,
+        "downside_vol": 0.2248822240837487,
+        "ewma_vol": 0.4496682424759609,
+        "max_dd_1y": -0.3449595803380996,
+        "high_52w_ratio": 0.9064180063597147,
+        "spread_bps": 39.382430261768505,
+        "beta_mkt": 0.828109268556871,
+        "beta_smb": -0.5398560532431256,
+        "beta_hml": -0.17938751859844085,
+        "beta_mom": -0.7843592843905204,
+        "factor_r2": 0.49387218793499943,
+        "idio_vol": 0.1937060235191382,
+        "n_factor_obs": 252
+      },
+      "quality": {
+        "ticker": "MSFT",
+        "sector": "Services-Prepackaged Software",
+        "period_end": "2026-06-30",
+        "roa": 0.17636238488559763,
+        "roe": 0.30233483352811,
+        "gross_margin": 0.6794409337058032,
+        "net_margin": 0.4030538905915218,
+        "fcf_margin": 0.20186596512164032,
+        "leverage": 0.040965167674082516,
+        "rev_growth": 0.17788686799846665,
+        "piotroski_f": 6,
+        "piotroski_max": 9
+      },
+      "valuation": {
+        "market_cap": 3619251370000.0,
+        "pe": 27.060025645051553,
+        "earnings_yield": 0.0369548799811603,
+        "pb": 8.18118834866305,
+        "ps": 10.906648615744382,
+        "fcf_yield": 0.018508523766891605,
+        "ev": 3629383370000.0,
+        "ev_sales": 10.937181494640473,
+        "flags": []
+      }
+    },
+    {
+      "ticker": "NVDA",
+      "name": "NVIDIA CORP",
+      "sector": "Semiconductors & Related Devices",
+      "sic": "3674",
+      "as_of": "2026-08-25",
+      "data_quality": {
+        "has_prices": true,
+        "has_fundamentals": true,
+        "fundamentals_period_end": "2026-01-25",
+        "price_last_close": 208.48,
+        "stale": false,
+        "flags": []
+      },
+      "confidence": "high",
+      "risk": {
+        "ticker": "NVDA",
+        "last_close": 208.48,
+        "n_bars": 5444,
+        "mom_12_1": 0.183624410261495,
+        "ret_1m": 0.007928833881260866,
+        "realized_vol": 0.39654295753772617,
+        "downside_vol": 0.2773637056602144,
+        "ewma_vol": 0.3487188102169864,
+        "max_dd_1y": -0.2021450630811915,
+        "high_52w_ratio": 0.8853752478393406,
+        "spread_bps": 75.02468720528843,
+        "beta_mkt": 1.4649682849400407,
+        "beta_smb": -0.1873114886119397,
+        "beta_hml": -0.11824058343134144,
+        "beta_mom": 0.302091546761021,
+        "factor_r2": 0.615206396384391,
+        "idio_vol": 0.22177315502059464,
+        "n_factor_obs": 252
+      },
+      "quality": {
+        "ticker": "NVDA",
+        "sector": "Semiconductors & Related Devices",
+        "period_end": "2026-01-25",
+        "roa": 0.5805863551302447,
+        "roe": 0.7633333969089534,
+        "gross_margin": null,
+        "net_margin": null,
+        "fcf_margin": null,
+        "leverage": 0.03611649734288187,
+        "rev_growth": null,
+        "piotroski_f": 4,
+        "piotroski_max": 7
+      },
+      "valuation": {
+        "market_cap": 5066897920000.0,
+        "pe": 42.20058733873587,
+        "earnings_yield": 0.023696352659103897,
+        "pb": 32.21311768483022,
+        "ps": 188.26253696960688,
+        "fcf_yield": 0.020244983542119593,
+        "ev": 5063761920000.0,
+        "ev_sales": 188.1460176859627,
+        "flags": []
+      }
+    },
+    {
+      "ticker": "KO",
+      "name": "COCA COLA CO",
+      "sector": "Beverages",
+      "sic": "2080",
+      "as_of": "2026-08-25",
+      "data_quality": {
+        "has_prices": true,
+        "has_fundamentals": true,
+        "fundamentals_period_end": "2025-12-31",
+        "price_last_close": 91.99,
+        "stale": false,
+        "flags": []
+      },
+      "confidence": "high",
+      "risk": {
+        "ticker": "KO",
+        "last_close": 91.99,
+        "n_bars": 5444,
+        "mom_12_1": 0.19719205344122104,
+        "ret_1m": 0.11841945288753797,
+        "realized_vol": 0.24520341379538393,
+        "downside_vol": 0.137564885308257,
+        "ewma_vol": 0.21411399262884065,
+        "max_dd_1y": -0.07869753854655248,
+        "high_52w_ratio": 1.0,
+        "spread_bps": 30.23700563843339,
+        "beta_mkt": 0.04174146962577142,
+        "beta_smb": 0.02518263939844634,
+        "beta_hml": -0.16051995532629437,
+        "beta_mom": 0.06595305515911191,
+        "factor_r2": 0.2014898170362206,
+        "idio_vol": 0.15310636333156216,
+        "n_factor_obs": 252
+      },
+      "quality": {
+        "ticker": "KO",
+        "sector": "Beverages",
+        "period_end": "2025-12-31",
+        "roa": 0.1250477026408182,
+        "roe": 0.4074419472162641,
+        "gross_margin": 0.6162574831563797,
+        "net_margin": 0.2733985523873094,
+        "fcf_margin": 0.11046911829123297,
+        "leverage": null,
+        "rev_growth": 0.018699135164998548,
+        "piotroski_f": 5,
+        "piotroski_max": 7
+      },
+      "valuation": {
+        "market_cap": 395623515117.31,
+        "pe": 30.184139400115207,
+        "earnings_yield": 0.03312998216527529,
+        "pb": 12.298284532230097,
+        "ps": 8.252300017048247,
+        "fcf_yield": 0.013386464144907144,
+        "ev": 420900515117.31,
+        "ev_sales": 8.779552264602533,
+        "flags": []
+      }
+    },
+    {
+      "ticker": "F",
+      "name": "FORD MOTOR CO",
+      "sector": "Motor Vehicles & Passenger Car Bodies",
+      "sic": "3711",
+      "as_of": "2026-08-25",
+      "data_quality": {
+        "has_prices": true,
+        "has_fundamentals": true,
+        "fundamentals_period_end": "2025-12-31",
+        "price_last_close": 13.93,
+        "stale": false,
+        "flags": []
+      },
+      "confidence": "high",
+      "risk": {
+        "ticker": "F",
+        "last_close": 13.93,
+        "n_bars": 5444,
+        "mom_12_1": 0.3125603437786646,
+        "ret_1m": 0.006895925501122946,
+        "realized_vol": 0.3637731453991758,
+        "downside_vol": 0.2509041300168318,
+        "ewma_vol": 0.37337714128558785,
+        "max_dd_1y": -0.23394495413002503,
+        "high_52w_ratio": 0.8296499110923129,
+        "spread_bps": 61.30908389501548,
+        "beta_mkt": 1.4832896649202698,
+        "beta_smb": 0.3563299103100537,
+        "beta_hml": 0.35545759006762473,
+        "beta_mom": 0.029891488907126326,
+        "factor_r2": 0.24935987935703408,
+        "idio_vol": 0.32845821352974147,
+        "n_factor_obs": 252
+      },
+      "quality": {
+        "ticker": "F",
+        "sector": "Motor Vehicles & Passenger Car Bodies",
+        "period_end": "2025-12-31",
+        "roa": null,
+        "roe": null,
+        "gross_margin": null,
+        "net_margin": null,
+        "fcf_margin": 0.06657339520577571,
+        "leverage": null,
+        "rev_growth": 0.012297829095312185,
+        "piotroski_f": 1,
+        "piotroski_max": 3
+      },
+      "valuation": {
+        "market_cap": 51706193905.87,
+        "pe": 8.795066151704372,
+        "earnings_yield": 0.11370011126138178,
+        "pb": 1.4382007650720405,
+        "ps": 0.27610947954455406,
+        "fcf_yield": 0.24111231282456994,
+        "ev": 28641193905.870003,
+        "ev_sales": 0.15294309144627727,
+        "flags": []
+      }
+    }
+  ],
+  "rankings": {
+    "quality": [
+      {
+        "ticker": "MSFT",
+        "rank": 100.0,
+        "score": 3.1405761987203973
+      },
+      {
+        "ticker": "NVDA",
+        "rank": 80.0,
+        "score": 0.5699454544968383
+      },
+      {
+        "ticker": "KO",
+        "rank": 60.0,
+        "score": -0.29349544872900457
+      },
+      {
+        "ticker": "F",
+        "rank": 40.0,
+        "score": -1.7070671928510597
+      },
+      {
+        "ticker": "AAPL",
+        "rank": 20.0,
+        "score": -2.8049328473515387
+      }
+    ]
+  }
+}
