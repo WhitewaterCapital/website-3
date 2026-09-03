@@ -1,0 +1,68 @@
+{
+  "__synthetic_test_fixture__": true,
+  "__source_note__": "Invented for IMP-06 PIT mechanism testing — not a real historical Aurora snapshot. See public/data/macro-history/README.md.",
+  "schema_version": "2.0.0",
+  "contract_kind": "macro_v2",
+  "engine_version": "0.1.0-synthetic-fixture",
+  "as_of_time": "2026-05-01",
+  "source_time": "2026-05-02T09:00:00+00:00",
+  "model_variant": "mortgage_choice",
+  "disclaimer": "SYNTHETIC TEST FIXTURE. Not real Aurora output — invented to exercise the IMP-06 point-in-time lookup mechanism. See public/data/macro-history/README.md.",
+  "regime": {
+    "structural_regime_label": "Expansion",
+    "filter_probability": 0.41,
+    "tone_score": 0.22,
+    "layer_weights": [
+      { "layer": "structural_filter", "weight": 0.5 },
+      { "layer": "nowcaster", "weight": 0.3 },
+      { "layer": "tilt_engine", "weight": 0.2 }
+    ],
+    "as_of": "2026-05-01",
+    "source_time": "2026-05-02T09:00:00+00:00"
+  },
+  "steady_state": {
+    "KYrat": 7.05,
+    "HYrat": 5.24,
+    "Nfrac": 0.254,
+    "MPfrac": 0.183,
+    "mortgage_rate_ann": 0.0951,
+    "gamma": 0.01438,
+    "calibrated": { "omega": 0.647, "xi": 0.499, "tauK": 0.335, "transfer": 0.468 },
+    "residual_norm": 8.7e-10
+  },
+  "scenarios": [
+    {
+      "id": "tfp_boom_+1pct",
+      "kind": "TFP",
+      "label": "Productivity boom",
+      "description": "SYNTHETIC: a +1% productivity shock, shortened 4-quarter fixture horizon.",
+      "horizon": 4,
+      "paths": [
+        { "variable": "output", "unit": "pct_dev", "path": [0.99, 0.97, 0.95, 0.93] },
+        { "variable": "house_price", "unit": "pct_dev", "path": [1.40, 1.38, 1.35, 1.31] }
+      ],
+      "effects": [
+        { "variable": "output", "impact": 0.99, "peak": 0.99, "peak_quarter": 1, "reverses": false },
+        { "variable": "house_price", "impact": 1.40, "peak": 1.40, "peak_quarter": 1, "reverses": false }
+      ],
+      "narrative": "SYNTHETIC fixture narrative — not a real scenario read.",
+      "confidence": "medium"
+    }
+  ],
+  "tilt": {
+    "factors": [{ "name": "quality", "lean": "neutral", "rationale": "SYNTHETIC fixture — no dominant regime" }],
+    "sectors": [],
+    "confidence": "medium"
+  },
+  "nowcast": {
+    "horizon_months": 3,
+    "method": "SYNTHETIC fixture — not a real nowcast run",
+    "as_of": "2026-05-01",
+    "factors": [
+      { "factor": "Mkt-RF", "expected_return": null, "oos_r2": 0.01, "hit_rate": 0.6, "skillful": false, "confidence": "insufficient" }
+    ],
+    "summary": "SYNTHETIC fixture summary — not a real forecast.",
+    "book_read": "SYNTHETIC fixture — for PIT mechanism testing only.",
+    "confidence": "insufficient"
+  }
+}

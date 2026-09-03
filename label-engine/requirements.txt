@@ -1,0 +1,14 @@
+# WW-LABEL engine — dependencies.
+
+pandas>=2.0
+numpy>=1.24
+
+# Test runner. (This sandbox uses an offline pytest-shim instead — see
+# /home/claude/repo/_pyshim — but a real environment should use real pytest.)
+pytest>=7.4
+
+# NOT used: scipy, scikit-learn, statsmodels, networkx. This package is
+# deliberately pure numpy/pandas — every computation here (forward returns,
+# barrier walks, uniqueness credit, meta-label construction, the look-ahead
+# assertion) is closed-form/loop-based, nothing here needs an estimator or a
+# graph library.

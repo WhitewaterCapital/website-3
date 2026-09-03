@@ -5,15 +5,16 @@
 // an explicit hysteresis state machine (see chaos-engine/chaos/state.py's
 // `run_state_machine` / `STATE_LEVELS`).
 //
-// NO real export seam exists yet: `src/lib/chaos.ts` / `getChaosExport()`
-// has not been built by the chaos-engine work (confirmed: no
-// `src/lib/chaos.ts` in this tree at the time this component was written).
-// Rather than a dynamic import of a module that doesn't exist yet (which
-// would fail typechecking), this component takes the chaos series as an
-// explicit, documented PROP — `ChaosPoint[]` — so it can be wired to
-// `getChaosExport()` with a one-line change the moment that seam lands. The
-// one call site in src/app/visuals/page.tsx passes a clearly-labeled SAMPLE
-// fixture today; swap that array for `getChaosExport()` there once available.
+// The real export seam (`src/lib/chaos.ts` / `getChaosExport()`) now exists
+// and is wired in: src/app/visuals/page.tsx reads it server-side and passes
+// the result down through VisualsClient, which converts it into this
+// component's plain `ChaosPoint[]` prop — this component itself still knows
+// nothing about the seam, only about the documented prop shape, so nothing
+// here needed to change to pick up real data. When getChaosExport() returns
+// null (or no reading has a usable chaos_index), VisualsClient falls back to
+// its own SAMPLE_CHAOS_POINTS fixture and passes `sample` below so the amber
+// banner renders — the caller decides real vs. sample, this component just
+// renders whichever `ChaosPoint[]` it's handed and labels it honestly.
 //
 // State color = a fixed 4-step status ramp (never themed, never reused for
 // anything else — see globals.css), always paired with the state's text
@@ -62,9 +63,9 @@ export function ChaosRibbon({
       <div className="border border-hairline bg-paper p-6">
         <p className="eyebrow">Not synced yet</p>
         <p className="mt-2 text-sm text-foreground/80">
-          No CHAOS-01 export is wired in yet — <code>src/lib/chaos.ts</code>{" "}
-          doesn&apos;t exist in this build. This panel will read{" "}
-          <code>getChaosExport()</code> once that seam lands.
+          No chaos points to show — the caller passed an empty series (e.g.{" "}
+          <code>getChaosExport()</code> not synced and no sample fallback
+          supplied).
         </p>
       </div>
     );

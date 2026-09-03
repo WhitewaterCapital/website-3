@@ -1,0 +1,85 @@
+{
+  "schema_version": "0.1.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-09-03T12:00:00+00:00",
+  "as_of": "2026-09-01",
+  "config": {
+    "prior_pseudo_obs": 60.0,
+    "uncertainty_penalty": 1.0,
+    "cost_penalty": 1.0,
+    "risk_aversion": 1.0,
+    "turnover_penalty": 0.25,
+    "default_cap": 0.30,
+    "total_gross_limit": 1.0,
+    "max_step_fraction": 0.5
+  },
+  "strategies": [
+    {
+      "name": "Equity L/S (Incepta)",
+      "shrunk_edge": 0.068,
+      "uncertainty_penalty_term": 0.012,
+      "cost_penalty_term": 0.006,
+      "score": 0.05,
+      "previous_budget": 0.26,
+      "budget": 0.29,
+      "delta": 0.03,
+      "shadow_mode": false,
+      "binding_constraints": []
+    },
+    {
+      "name": "Macro overlay (Aurora)",
+      "shrunk_edge": 0.03,
+      "uncertainty_penalty_term": 0.018,
+      "cost_penalty_term": 0.004,
+      "score": 0.008,
+      "previous_budget": 0.22,
+      "budget": 0.16,
+      "delta": -0.06,
+      "shadow_mode": false,
+      "binding_constraints": []
+    },
+    {
+      "name": "Intra/Exitus tactical",
+      "shrunk_edge": 0.0471,
+      "uncertainty_penalty_term": 0.03,
+      "cost_penalty_term": 0.014,
+      "score": 0.0031,
+      "previous_budget": 0.18,
+      "budget": 0.19,
+      "delta": 0.01,
+      "shadow_mode": false,
+      "binding_constraints": []
+    },
+    {
+      "name": "Weekly rank (WW-WEEKLY)",
+      "shrunk_edge": 0.0075,
+      "uncertainty_penalty_term": 0.02,
+      "cost_penalty_term": 0.006,
+      "score": -0.0185,
+      "previous_budget": 0.15,
+      "budget": 0.10,
+      "delta": -0.05,
+      "shadow_mode": false,
+      "binding_constraints": []
+    },
+    {
+      "name": "Dispersion overlay (new)",
+      "shrunk_edge": 0.0106,
+      "uncertainty_penalty_term": 0.04,
+      "cost_penalty_term": 0.02,
+      "score": -0.0494,
+      "previous_budget": 0.0,
+      "budget": 0.0,
+      "delta": 0.0,
+      "shadow_mode": true,
+      "binding_constraints": ["shadow_zero:Dispersion overlay (new)"]
+    }
+  ],
+  "active_constraints": ["total_gross_limit", "shadow_zero:Dispersion overlay (new)"],
+  "fallback_used": false,
+  "fallback_reason": null,
+  "feasible": true,
+  "objective_value": 0.0289,
+  "disclaimer": "WW-ALLOC is a research capital-allocation model producing budget recommendations, not executed orders or investment advice. SAMPLE DATA: quant-infra/alloc/solve.py is a pure function over caller-supplied inputs with no persisted run history and no live bridge into this Next.js app at request time, so the strategies, edges, and budgets below are one hypothetical solve() call built from solve.py's own scoring formula, for illustration only — not a real allocation.",
+  "generatedBy": "WW-ALLOC (sample) — illustrative solve() call, no live allocator run wired in"
+}

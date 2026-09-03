@@ -2,8 +2,12 @@ import Link from "next/link";
 import { ModuleNav } from "@/components/ModuleNav";
 import { LineChart } from "@/components/LineChart";
 import { ExposureGauge } from "@/components/ExposureGauge";
+import { AllocatorPanel } from "@/components/AllocatorPanel";
+import { DisagreementPanel } from "@/components/DisagreementPanel";
 import { Stat, Card } from "@/components/ui";
 import { getBroker } from "@/lib/broker";
+import { getAllocExport } from "@/lib/alloc";
+import { getStateExport } from "@/lib/state";
 import { snapshots } from "@/lib/sample-data";
 import { computeMetrics } from "@/lib/metrics";
 import { usd, pct, shortDate, num } from "@/lib/format";
@@ -48,6 +52,8 @@ export default async function DeskPage() {
   const account = await broker.getAccount();
   const m = computeMetrics(snapshots);
   const labels = snapshots.map((s) => shortDate(s.date));
+  const alloc = await getAllocExport();
+  const state = await getStateExport();
 
   return (
     <div>
@@ -184,6 +190,18 @@ export default async function DeskPage() {
                 </tbody>
               </table>
             </Card>
+          </div>
+        </section>
+
+        {/* Capital allocator — IMP-05 — and model disagreement — IMP-16 */}
+        <section className="mt-14">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="eyebrow">Allocator &amp; disagreement</h2>
+            <span className="text-xs text-muted">Why capital moved this week, and where models split.</span>
+          </div>
+          <div className="space-y-6">
+            <AllocatorPanel alloc={alloc} state={state} />
+            <DisagreementPanel />
           </div>
         </section>
       </main>

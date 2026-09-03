@@ -7,6 +7,7 @@ import { ChaosRibbon, type ChaosPoint } from "@/components/ChaosRibbon";
 import { CascadeNetwork } from "@/components/CascadeNetwork";
 import { AllocatorRibbon } from "@/components/AllocatorRibbon";
 import type { GraphExport } from "@/lib/models/graph-export";
+import type { ChaosExport } from "@/lib/models/chaos-export";
 
 // VIS-01 — the static + replay visual layer, assembled with ONE shared
 // replay scrubber. Per the planning doc's own recommended build order
@@ -17,13 +18,14 @@ import type { GraphExport } from "@/lib/models/graph-export";
 // websocket/SSE backend (none exists in this repo).
 //
 // ---------------------------------------------------------------------------
-// CHAOS-01 sample fixture. No `src/lib/chaos.ts` / `getChaosExport()` seam
-// exists yet in this tree (checked before writing this file). This is the
-// ONE call site with a clearly-labeled SAMPLE array — swap it for
-// `getChaosExport()` (fed into <ChaosRibbon points={...} />) the moment that
-// seam lands; ChaosRibbon's prop shape is already documented for that swap.
-// State labels match chaos-engine/chaos/state.py's real STATE_LEVELS exactly
-// (calm/stressed/dislocated/cascade) so the swap changes no vocabulary.
+// CHAOS-01 sample fixture — the FALLBACK, used only when `chaos` (read
+// server-side via getChaosExport() in src/app/visuals/page.tsx) is null or
+// has no reading with a usable chaos_index. The seam itself now exists and
+// is wired below (see the `chaosIsReal` branch); this fixture stays because
+// getChaosExport() returns a per-ticker snapshot, not a time series, so a
+// "not synced" or "no usable reading" state still needs something to show a
+// replay ribbon with. State labels match chaos-engine/chaos/state.py's real
+// STATE_LEVELS exactly (calm/stressed/dislocated/cascade) either way.
 // ---------------------------------------------------------------------------
 const SAMPLE_CHAOS_POINTS: ChaosPoint[] = (() => {
   const n = 40;
@@ -50,11 +52,24 @@ const SAMPLE_PRICE = SAMPLE_CHAOS_POINTS.map((p, i) => {
   return 100 - drawdown + Math.sin(i / 3) * 0.6;
 });
 
-export function VisualsClient({ graph }: { graph: GraphExport | null }) {
+export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; chaos: ChaosExport | null }) {
   const [step, setStep] = useState(0);
   const maxStep = SAMPLE_CHAOS_POINTS.length - 1;
   const cascadeSteps = 16;
   const cascadeStep = Math.round((step / maxStep) * (cascadeSteps - 1));
+
+  // getChaosExport() is a per-ticker SNAPSHOT (one `as_of`), not a stored
+  // time series — there is no chaos history to scrub through yet. When a
+  // real export is present, use its first reading with a usable (non-null)
+  // chaos_index as a single real ChaosPoint; the replay scrubber above still
+  // drives the Cascade network, but has nothing to scrub on the ribbon
+  // itself in that case (n=1). Fall back to the SAMPLE fixture, clearly
+  // labeled, only when no real reading is usable.
+  const primaryReading = chaos?.readings.find((r) => r.chaos_index != null) ?? null;
+  const chaosIsReal = primaryReading != null;
+  const chaosPoints = primaryReading
+    ? [{ state: primaryReading.state_label, index: primaryReading.chaos_index as number, asOf: primaryReading.as_of }]
+    : SAMPLE_CHAOS_POINTS;
 
   return (
     <div className="space-y-10">
@@ -87,7 +102,21 @@ export function VisualsClient({ graph }: { graph: GraphExport | null }) {
       </Card>
 
       <Card title="Chaos ribbon — CHAOS-01 state">
-        <ChaosRibbon points={SAMPLE_CHAOS_POINTS} priceSeries={SAMPLE_PRICE} currentIndex={step} sample />
+        {chaosIsReal ? (
+          <>
+            <p className="mb-3 text-xs text-muted">
+              Ticker <strong>{primaryReading!.ticker}</strong>, current reading only — WW-CHAOS does not yet
+              persist a time history, so this is one real point, not a series. Provenance:{" "}
+              <strong>{chaos!.provenance}</strong>.
+              {chaos!.watchlist.length > 1 &&
+                ` (${chaos!.watchlist.length - 1} other watchlist ticker${chaos!.watchlist.length > 2 ? "s" : ""} not shown.)`}
+            </p>
+            <ChaosRibbon points={chaosPoints} currentIndex={0} sample={false} />
+            <p className="mt-3 text-[11px] text-muted">{chaos!.disclaimer}</p>
+          </>
+        ) : (
+          <ChaosRibbon points={SAMPLE_CHAOS_POINTS} priceSeries={SAMPLE_PRICE} currentIndex={step} sample />
+        )}
       </Card>
 
       <Card title="Cascade network — WW-CASCADE pressure propagation">
