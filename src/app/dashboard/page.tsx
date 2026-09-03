@@ -45,6 +45,12 @@ const MODULES = [
     latin: "keep vigil",
     blurb: "Daily position monitor — invalidations, urgency, and the audit trail.",
   },
+  {
+    href: "/weekly",
+    name: "WW-Weekly",
+    latin: "the weekly rank",
+    blurb: "Ranked weekly cross-section — who's expected to lead, who's expected to lag.",
+  },
 ];
 
 export default async function DeskPage() {

@@ -5,6 +5,50 @@ import { MODELS } from "@/lib/models/registry";
 
 const statusTone = { live: "up", beta: "warn", planned: "neutral" } as const;
 
+// The sealed backend engines that run for real in this codebase but aren't
+// wrapped in the ModelMeta shape above (each has its own typed export
+// contract, not the shared MacroModel/EquityModel/EvaluatorModel/LevelsModel
+// interface) — listed here so a member landing on this hub can still find
+// every real piece of the system, not just the four in MODELS.
+const SEALED_ENGINES: { id: string; description: string; href: string; linkLabel: string }[] = [
+  {
+    id: "WW-STATE",
+    description: "The market state vector — volatility, dispersion, correlation, breadth, trend, liquidity, and slippage, read in plain language.",
+    href: "/dashboard",
+    linkLabel: "See it on the Desk",
+  },
+  {
+    id: "WW-ALLOC",
+    description: "The capital allocator — budgets by strategy, and why each one moved (expected edge, an uncertainty penalty, a cost penalty).",
+    href: "/dashboard",
+    linkLabel: "See it on the Desk",
+  },
+  {
+    id: "WW-GRAPH",
+    description: "Residual dislocations vs. each name's graph-implied peers, and predicted reversion speed where the engine found one.",
+    href: "/visuals",
+    linkLabel: "See it in Visuals",
+  },
+  {
+    id: "WW-CHAOS",
+    description: "A calm / stressed / dislocated / cascade market-state read via an explicit hysteresis state machine.",
+    href: "/visuals",
+    linkLabel: "See it in Visuals",
+  },
+  {
+    id: "WW-CASCADE",
+    description: "Fund-to-constituent pressure propagation from a flow shock — a sample fixture today; real holdings data (DATA-01) hasn't been built.",
+    href: "/visuals",
+    linkLabel: "See it in Visuals",
+  },
+  {
+    id: "WW-WEEKLY",
+    description: "A ranked weekly cross-sectional forecast — expected relative return, quantile band, decile, and confidence, by name.",
+    href: "/weekly",
+    linkLabel: "See the ranked list",
+  },
+];
+
 // MODEL REGISTRY — every model the desk runs, and its status. The hub where
 // your algos are wired in (see src/lib/models/README.md).
 export default function ModelRegistryPage() {
@@ -46,6 +90,38 @@ export default function ModelRegistryPage() {
             </div>
           ))}
         </div>
+
+        {/* Sealed backend engines — real, running, and surfaced somewhere on
+            the site, but not part of the ModelMeta registry above. Plain
+            rows, not the tile grid — these aren't ModelMeta entries and
+            aren't forced into that shape. */}
+        <section className="mt-14">
+          <p className="eyebrow">Sealed backend engines</p>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            These run for real in this codebase — each with its own typed
+            export contract — but sit outside the MODELS registry above.
+            Every one is surfaced somewhere on the site; find it here.
+          </p>
+          <div className="mt-4 border border-hairline bg-paper">
+            {SEALED_ENGINES.map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-5 py-4 first:border-t-0"
+              >
+                <div>
+                  <span className="font-mono text-xs text-muted">{e.id}</span>
+                  <p className="mt-0.5 text-sm text-foreground/80">{e.description}</p>
+                </div>
+                <Link
+                  href={e.href}
+                  className="whitespace-nowrap text-xs font-medium text-accent hover:underline"
+                >
+                  {e.linkLabel} →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );

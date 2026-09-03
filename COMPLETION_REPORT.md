@@ -124,6 +124,10 @@ TypeScript/TSX cannot be compiled in this sandbox (no network to install `node_m
 
 None of these were worked around with fabricated data, a fake vendor response, or an invented file. Every blocked item above has real, tested infrastructure built up to the exact point where a real external credential or file would be needed, and stops there honestly.
 
+## Added mid-engagement: design consistency and interlinking (user request)
+
+After reviewing the team's live deployed site (whitewater-management.vercel.app/dashboard — an older deployment than this repo, used here purely as the design reference), the user asked that every model/engine be presented in that same visual system and be easy to find from one another. **Done**: a dedicated audit pass reviewed all 17 pages/components built or touched this engagement against the site's real design tokens (`src/app/globals.css`) and shared components (`src/components/ui.tsx`'s `Card`/`Stat`/`Badge`, `ModuleNav`) — everything was already consistent except one file (`MacroReader.tsx` had a duplicate local copy of `Card` instead of importing it; fixed to import the real one). The audit also found WW-WEEKLY was the one real engine with no page of its own — its ranked cross-section was only ever read internally by WATCH-02 — so a new `/weekly` page was built in the same design system, reading the real `getWeeklyExport()` data with the same honest "not synced" fallback every other real-data reader uses, and added to the dashboard's module launcher. The `/models` registry page gained a new "Sealed backend engines" section listing WW-STATE, WW-ALLOC, WW-GRAPH, WW-CHAOS, WW-CASCADE and WW-WEEKLY with a link to wherever each is actually surfaced, so every real piece of the system is discoverable from one hub. Round-trip navigation (dashboard → any page → back to dashboard via `ModuleNav`) was confirmed for every page.
+
 ## Recommended next steps, in priority order
 
 1. Provide JT's Fable file (LOOP-04) — this is pure waiting on the user, not a technical blocker.

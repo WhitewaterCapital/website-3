@@ -10,7 +10,7 @@ import type {
   SteadyState,
   Confidence,
 } from "@/lib/models/aurora-export";
-import { Badge } from "@/components/ui";
+import { Badge, Card } from "@/components/ui";
 
 // ── Honesty formatters. null → "—" always, never 0. ────────────────────────
 const dash = "—";
@@ -467,23 +467,8 @@ function NowcastCard({ nowcast }: { nowcast: Nowcast | null }) {
   );
 }
 
-// ── Shared block wrapper ───────────────────────────────────────────────────
-function Block({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="border border-hairline bg-paper p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="eyebrow">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
+// ── Shared block wrapper — the site's own Card (src/components/ui.tsx). This
+// used to be a locally-defined lookalike with the same border-hairline/
+// bg-paper shape; now it just is Card, so this reader stays byte-for-byte
+// in step with every other Card-using page instead of a parallel copy. ──────
+const Block = Card;
