@@ -1,0 +1,13 @@
+# WW-WEEKLY engine — dependencies.
+
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3   # Ridge, HistGradientBoostingRegressor (incl. quantile loss)
+
+# Test runner. (This sandbox uses an offline pytest-shim instead — see
+# /home/claude/repo/_pyshim — but a real environment should use real pytest.)
+pytest>=7.4
+
+# --- Not needed until a real point-in-time price feed is wired in ---
+# requests>=2.31      # an HTTP price/volume adapter (e.g. Tiingo, like intra-exitus-engine's)

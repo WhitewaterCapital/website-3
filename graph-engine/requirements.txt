@@ -1,0 +1,14 @@
+# WW-GRAPH engine — dependencies.
+
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10            # sparse matrix-vector products for the diffusion step
+scikit-learn>=1.3      # sklearn.covariance.LedoitWolf (shrunk correlation)
+
+# Test runner.
+pytest>=7.4
+
+# NOT used: networkx, statsmodels. See README "Design choices" for why the
+# diffusion operator is plain scipy.sparse rather than networkx, and
+# ge/reversion.py for why OU/AR(1) is hand-rolled rather than statsmodels
+# (same closed-form approach as intra-exitus-engine/ie/levels/ou.py).

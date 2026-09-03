@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# incepta engine: append-only local trial log (MLVAL-02) — research
+# artifacts, not audited records; never fabricated data, just noisy/local.
+/engine/incepta/_trials/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

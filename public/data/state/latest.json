@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-09-03T04:36:46.287250",
+  "as_of": "2026-09-03",
+  "state_vector": {
+    "schema_version": "1.0.0",
+    "element_order": [
+      "volatility",
+      "dispersion",
+      "correlation",
+      "breadth",
+      "trend",
+      "slippage",
+      "liquidity"
+    ],
+    "as_of": "2026-09-03",
+    "volatility": {
+      "available": true,
+      "value": 0.17463409555298193,
+      "raw": {
+        "windows": {
+          "21": {
+            "realized_vol": 0.13583176118642096,
+            "history_mean": 0.13944243285007082,
+            "history_std": 0.022685092785730682,
+            "z": -0.15916495020558358,
+            "n_obs": 880
+          },
+          "63": {
+            "realized_vol": 0.14882786343672189,
+            "history_mean": 0.1417313188994819,
+            "history_std": 0.012781177158827428,
+            "z": 0.555234032754072,
+            "n_obs": 838
+          },
+          "252": {
+            "realized_vol": 0.1444062290954631,
+            "history_mean": 0.1439663660621504,
+            "history_std": 0.0034409137780245617,
+            "z": 0.1278332041104573,
+            "n_obs": 649
+          }
+        },
+        "implied_vol": null,
+        "implied_vol_term_structure": null
+      },
+      "notes": [
+        "implied volatility / vol term structure not available: this engine has no live options/implied-vol feed wired in (would need a market-data vendor); reporting realised volatility only."
+      ],
+      "reason": null
+    },
+    "dispersion": {
+      "available": true,
+      "value": 0.24079890361296857,
+      "raw": {
+        "cross_sectional_std": 0.012438471939662679,
+        "history_mean": 0.012031247868578093,
+        "history_std": 0.0016911375632303915,
+        "n_obs": 900
+      },
+      "notes": [],
+      "reason": null
+    },
+    "correlation": {
+      "available": true,
+      "value": -0.0638576154823618,
+      "raw": {
+        "avg_pairwise_corr": 0.12860930839469822,
+        "z_level": 0.5230007459668472,
+        "rate_of_change": -0.010174065625501855,
+        "z_rate_of_change": -0.6507159769315708,
+        "window": 63,
+        "roc_lag_days": 21
+      },
+      "notes": [],
+      "reason": null
+    },
+    "breadth": {
+      "available": true,
+      "value": -0.7890174524083271,
+      "raw": {
+        "share_above_own_ma": 0.44,
+        "z_share_above_own_ma": -0.7444209577930779,
+        "advance_decline_balance": -0.28,
+        "z_advance_decline_balance": -0.8336139470235764,
+        "ma_window": 200
+      },
+      "notes": [],
+      "reason": null
+    },
+    "trend": {
+      "available": true,
+      "value": -1.1898656671829244,
+      "raw": {
+        "horizons": {
+          "21": {
+            "momentum": -0.07043056731010211,
+            "z": -1.7994874757136798,
+            "n_obs": 880
+          },
+          "63": {
+            "momentum": -0.03567702073822265,
+            "z": -0.7045031091057475,
+            "n_obs": 838
+          },
+          "252": {
+            "momentum": -0.08393176167773653,
+            "z": -1.0656064167293455,
+            "n_obs": 649
+          }
+        },
+        "sign_consistency": 1.0
+      },
+      "notes": [],
+      "reason": null
+    },
+    "slippage": {
+      "available": false,
+      "value": null,
+      "raw": {},
+      "notes": [],
+      "reason": "no realised execution/fill data available \u2014 this engine does not yet capture live broker fills, so realised-vs-expected execution cost cannot be computed (would require fabricating a number)"
+    },
+    "liquidity": {
+      "available": true,
+      "value": -0.1643837703834195,
+      "raw": {
+        "spread_window": 21,
+        "spread_bps": 15.454086503655935,
+        "z_liquidity_from_spread": 0.5208513486624619,
+        "volume": 1271271.9393613655,
+        "z_liquidity_from_volume": -0.8496188894293009
+      },
+      "notes": [],
+      "reason": null
+    }
+  },
+  "plain_language": {
+    "volatility": "volatility normal",
+    "dispersion": "dispersion typical",
+    "correlation": "correlation typical",
+    "breadth": "breadth typical",
+    "trend": "trend down, broadly confirmed across horizons",
+    "slippage": "slippage: not measurable (no realised execution/fill data available \u2014 this engine does not yet capture live broker fills, so realised-vs-expected execution cost cannot be computed (would require fabricating a number))",
+    "liquidity": "liquidity normal"
+  },
+  "disclaimer": "Research/paper output only. Describes market REGIME, not a trade signal. Two of seven elements (implied-vol term structure, slippage) require data this engine does not yet have and are reported as null with a stated reason rather than estimated.",
+  "universe_note": "SYNTHETIC DEMO DATA: this export was generated from a randomly-simulated universe of 25 synthetic tickers (SYN00..SYN24), not real market data, so the website seam has something real to read before a live index/universe feed is wired in."
+}

@@ -8,6 +8,7 @@ import type {
 import { macroTracker } from "./impl/macro-tracker";
 import { distresse } from "./impl/distresse";
 import { intraExitus } from "./impl/intra-exitus";
+import { equityModel } from "./impl/equity";
 import { yourMacroAlgo } from "./impl/_template";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -25,12 +26,13 @@ export const models = {
   macroTracker,
   distresse,
   intraExitus,
+  equity: equityModel,
 };
 
 // Typed rosters — live models, grouped by what they do. Generic UI (and any
 // future "run every macro model" logic) iterates these.
 export const macroModels: MacroModel[] = [macroTracker];
-export const equityModels: EquityModel[] = []; // add your equity model here
+export const equityModels: EquityModel[] = [equityModel];
 export const evaluators: EvaluatorModel[] = [distresse];
 export const levelsModels: LevelsModel[] = [intraExitus];
 
@@ -39,6 +41,7 @@ export const MODELS: ModelMeta[] = [
   macroTracker.meta,
   distresse.meta,
   intraExitus.meta,
+  equityModel.meta,
   yourMacroAlgo.meta, // planned — the reserved slot for your macro algo
 ];
 

@@ -1,0 +1,612 @@
+{
+  "schema_version": "1.0.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-09-03T04:11:24.123918+00:00",
+  "as_of": "2019-02-25",
+  "universe": [
+    "S0N0",
+    "S0N1",
+    "S0N2",
+    "S0N3",
+    "S0N4",
+    "S0N5",
+    "S0N6",
+    "S0N7",
+    "S0N8",
+    "S0N9",
+    "S1N0",
+    "S1N1",
+    "S1N2",
+    "S1N3",
+    "S1N4",
+    "S1N5",
+    "S1N6",
+    "S1N7",
+    "S1N8",
+    "S1N9",
+    "S2N0",
+    "S2N1",
+    "S2N2",
+    "S2N3",
+    "S2N4",
+    "S2N5",
+    "S2N6",
+    "S2N7",
+    "S2N8",
+    "S2N9",
+    "S3N0",
+    "S3N1",
+    "S3N2",
+    "S3N3",
+    "S3N4",
+    "S3N5",
+    "S3N6",
+    "S3N7",
+    "S3N8",
+    "S3N9",
+    "S4N0",
+    "S4N1",
+    "S4N2",
+    "S4N3",
+    "S4N4",
+    "S4N5",
+    "S4N6",
+    "S4N7",
+    "S4N8",
+    "S4N9",
+    "S5N0",
+    "S5N1",
+    "S5N2",
+    "S5N3",
+    "S5N4",
+    "S5N5",
+    "S5N6",
+    "S5N7",
+    "S5N8",
+    "S5N9"
+  ],
+  "disclaimer": "WW-GRAPH is a graph-diffusion pairs research model: it spreads each name's signal across a correlation/sector graph of its peers, and treats the gap between the name's actual signal and its graph-implied neighbourhood value as a candidate mean-reverting residual. A half-life is reported ONLY when the residual's own history shows statistically significant reversion (Dickey-Fuller gate) \u2014 otherwise the model abstains rather than invent a number. Research/paper output only; not investment advice, not a validated alpha model.",
+  "data_provenance": "synthetic-demo",
+  "residuals": [
+    {
+      "ticker": "S0N0",
+      "diffused_value": 0.197294,
+      "residual": -1.158627,
+      "residual_z": -1.1883,
+      "half_life_days": 2.74,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N1",
+      "diffused_value": 0.078041,
+      "residual": 0.892742,
+      "residual_z": 0.9516,
+      "half_life_days": 3.9,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N2",
+      "diffused_value": 0.270681,
+      "residual": -0.964425,
+      "residual_z": -0.9857,
+      "half_life_days": 3.04,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N3",
+      "diffused_value": 0.169184,
+      "residual": -0.772049,
+      "residual_z": -0.785,
+      "half_life_days": 3.28,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N4",
+      "diffused_value": 0.07969,
+      "residual": 0.270982,
+      "residual_z": 0.303,
+      "half_life_days": 2.57,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N5",
+      "diffused_value": 0.230417,
+      "residual": 0.08601,
+      "residual_z": 0.1101,
+      "half_life_days": 2.94,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N6",
+      "diffused_value": 0.182876,
+      "residual": -0.550393,
+      "residual_z": -0.5538,
+      "half_life_days": 3.01,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N7",
+      "diffused_value": 0.119759,
+      "residual": 0.567093,
+      "residual_z": 0.6119,
+      "half_life_days": 3.09,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N8",
+      "diffused_value": 0.094353,
+      "residual": 1.291019,
+      "residual_z": 1.367,
+      "half_life_days": 3.54,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S0N9",
+      "diffused_value": 0.108281,
+      "residual": 0.142678,
+      "residual_z": 0.1692,
+      "half_life_days": 2.6,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N0",
+      "diffused_value": 0.060808,
+      "residual": -0.289334,
+      "residual_z": 0.0998,
+      "half_life_days": 3.38,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N1",
+      "diffused_value": -0.012753,
+      "residual": 0.143421,
+      "residual_z": 0.5512,
+      "half_life_days": 3.33,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N2",
+      "diffused_value": -0.02364,
+      "residual": 0.12846,
+      "residual_z": 0.5356,
+      "half_life_days": 3.16,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N3",
+      "diffused_value": 0.068522,
+      "residual": -1.647294,
+      "residual_z": -1.3168,
+      "half_life_days": 3.18,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N4",
+      "diffused_value": 0.057348,
+      "residual": 0.422274,
+      "residual_z": 0.842,
+      "half_life_days": 2.74,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N5",
+      "diffused_value": 0.092021,
+      "residual": -1.283692,
+      "residual_z": -0.9375,
+      "half_life_days": 2.18,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N6",
+      "diffused_value": 0.076051,
+      "residual": -1.430501,
+      "residual_z": -1.0906,
+      "half_life_days": 3.48,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N7",
+      "diffused_value": 0.013415,
+      "residual": -0.057235,
+      "residual_z": 0.3419,
+      "half_life_days": 3.19,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N8",
+      "diffused_value": -0.049049,
+      "residual": 0.125292,
+      "residual_z": 0.5323,
+      "half_life_days": 2.9,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S1N9",
+      "diffused_value": 0.050381,
+      "residual": 0.039009,
+      "residual_z": 0.4423,
+      "half_life_days": 2.73,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N0",
+      "diffused_value": 0.225304,
+      "residual": 0.632239,
+      "residual_z": -0.1368,
+      "half_life_days": 3.2,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N1",
+      "diffused_value": 0.264799,
+      "residual": 0.187809,
+      "residual_z": -0.6004,
+      "half_life_days": 4.01,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N2",
+      "diffused_value": 0.377264,
+      "residual": 0.590625,
+      "residual_z": -0.1802,
+      "half_life_days": 3.33,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N3",
+      "diffused_value": 0.117384,
+      "residual": 0.619749,
+      "residual_z": -0.1499,
+      "half_life_days": 3.11,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N4",
+      "diffused_value": 0.145312,
+      "residual": 1.53964,
+      "residual_z": 0.8097,
+      "half_life_days": 2.78,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N5",
+      "diffused_value": 0.301143,
+      "residual": -0.101851,
+      "residual_z": -0.9026,
+      "half_life_days": 2.63,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N6",
+      "diffused_value": 0.256826,
+      "residual": 1.593915,
+      "residual_z": 0.8663,
+      "half_life_days": 2.85,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N7",
+      "diffused_value": 0.150512,
+      "residual": 1.573929,
+      "residual_z": 0.8455,
+      "half_life_days": 2.83,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N8",
+      "diffused_value": 0.119922,
+      "residual": 0.926462,
+      "residual_z": 0.1701,
+      "half_life_days": 3.04,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S2N9",
+      "diffused_value": 0.310947,
+      "residual": 0.07167,
+      "residual_z": -0.7216,
+      "half_life_days": 2.62,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N0",
+      "diffused_value": 0.035836,
+      "residual": 0.271067,
+      "residual_z": 0.444,
+      "half_life_days": 3.11,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N1",
+      "diffused_value": -0.026936,
+      "residual": -0.654634,
+      "residual_z": -0.5217,
+      "half_life_days": 3.64,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N2",
+      "diffused_value": -0.043056,
+      "residual": 0.419914,
+      "residual_z": 0.5992,
+      "half_life_days": 3.31,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N3",
+      "diffused_value": -0.053871,
+      "residual": 0.857388,
+      "residual_z": 1.0556,
+      "half_life_days": 3.0,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N4",
+      "diffused_value": -0.027968,
+      "residual": -0.028146,
+      "residual_z": 0.1318,
+      "half_life_days": 3.57,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N5",
+      "diffused_value": 0.07855,
+      "residual": -2.255614,
+      "residual_z": -2.1917,
+      "half_life_days": 2.65,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N6",
+      "diffused_value": -0.03656,
+      "residual": -0.334978,
+      "residual_z": -0.1882,
+      "half_life_days": 2.7,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N7",
+      "diffused_value": -0.068582,
+      "residual": 1.896106,
+      "residual_z": 2.1391,
+      "half_life_days": 3.82,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N8",
+      "diffused_value": -0.009758,
+      "residual": -0.984024,
+      "residual_z": -0.8653,
+      "half_life_days": 3.07,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S3N9",
+      "diffused_value": 0.061873,
+      "residual": -0.73236,
+      "residual_z": -0.6028,
+      "half_life_days": 2.8,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N0",
+      "diffused_value": -0.164567,
+      "residual": -0.945844,
+      "residual_z": -0.3415,
+      "half_life_days": 3.48,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N1",
+      "diffused_value": -0.298921,
+      "residual": -0.184142,
+      "residual_z": 0.4531,
+      "half_life_days": 2.54,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N2",
+      "diffused_value": -0.207854,
+      "residual": 0.457469,
+      "residual_z": 1.1224,
+      "half_life_days": 3.09,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N3",
+      "diffused_value": -0.189789,
+      "residual": -1.631988,
+      "residual_z": -1.0572,
+      "half_life_days": 2.76,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N4",
+      "diffused_value": -0.354296,
+      "residual": 0.506922,
+      "residual_z": 1.174,
+      "half_life_days": 3.05,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N5",
+      "diffused_value": -0.277141,
+      "residual": -1.518619,
+      "residual_z": -0.9389,
+      "half_life_days": 1.86,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N6",
+      "diffused_value": -0.366102,
+      "residual": -1.150618,
+      "residual_z": -0.5551,
+      "half_life_days": 2.65,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N7",
+      "diffused_value": -0.272947,
+      "residual": -0.945832,
+      "residual_z": -0.3414,
+      "half_life_days": 2.55,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N8",
+      "diffused_value": -0.401051,
+      "residual": 0.013454,
+      "residual_z": 0.6592,
+      "half_life_days": 2.76,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S4N9",
+      "diffused_value": -0.118613,
+      "residual": -0.785878,
+      "residual_z": -0.1746,
+      "half_life_days": 4.1,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N0",
+      "diffused_value": 0.192851,
+      "residual": 0.495031,
+      "residual_z": 0.3893,
+      "half_life_days": 3.28,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N1",
+      "diffused_value": 0.046099,
+      "residual": 1.036977,
+      "residual_z": 0.9546,
+      "half_life_days": 1.84,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N2",
+      "diffused_value": 0.245773,
+      "residual": -1.263892,
+      "residual_z": -1.4455,
+      "half_life_days": 2.81,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N3",
+      "diffused_value": 0.167986,
+      "residual": -0.71844,
+      "residual_z": -0.8765,
+      "half_life_days": 2.72,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N4",
+      "diffused_value": 0.172828,
+      "residual": 0.712623,
+      "residual_z": 0.6163,
+      "half_life_days": 2.06,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N5",
+      "diffused_value": 0.042914,
+      "residual": -0.191512,
+      "residual_z": -0.3268,
+      "half_life_days": 2.15,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N6",
+      "diffused_value": 0.271612,
+      "residual": -1.114129,
+      "residual_z": -1.2892,
+      "half_life_days": 2.98,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N7",
+      "diffused_value": 0.10815,
+      "residual": 1.869592,
+      "residual_z": 1.8232,
+      "half_life_days": 2.74,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N8",
+      "diffused_value": 0.063561,
+      "residual": 1.4923,
+      "residual_z": 1.4296,
+      "half_life_days": 4.5,
+      "half_life_significant": true,
+      "confidence": "significant"
+    },
+    {
+      "ticker": "S5N9",
+      "diffused_value": 0.219573,
+      "residual": -1.100495,
+      "residual_z": -1.275,
+      "half_life_days": 3.37,
+      "half_life_significant": true,
+      "confidence": "significant"
+    }
+  ]
+}
