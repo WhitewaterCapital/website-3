@@ -145,6 +145,8 @@ export default function PublicPage() {
                 <LineChart
                   labels={labels}
                   yFormat={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`}
+                  yAxisLabel="Cumulative return since inception (%)"
+                  asOf={m.latest.date}
                   series={[
                     { values: usPct, color: "currentColor", label: "Whitewater" },
                     { values: spyPct, color: "#9ca3af", label: "SPY" },
@@ -154,7 +156,7 @@ export default function PublicPage() {
             </div>
             <Card title="How much is in trades">
               <div className="flex h-full items-center justify-center py-4">
-                <ExposureGauge investedPct={m.exposure.investedPct} />
+                <ExposureGauge investedPct={m.exposure.investedPct} asOf={m.latest.date} />
               </div>
             </Card>
           </div>

@@ -1,0 +1,114 @@
+{
+  "schema_version": "0.1.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-09-03T10:22:15.317836+00:00",
+  "as_of": "2026-06-03T10:09:00",
+  "watchlist": [
+    "AAPL",
+    "MSFT"
+  ],
+  "provenance": "synthetic-demo",
+  "disclaimer": "WW-CHAOS is a research model, not investment advice or an order. This is not high frequency trading: there is no colocated infrastructure and no microsecond order-book access. What is reachable is intraday dislocation capture on a 1 to 15 minute horizon. The directional probability is produced by a calibrated gradient-boosted classifier, an explicitly simplified stand-in for the design's causal dilated-TCN (no local deep-learning framework is available and there is no network access to install one). This export runs in synthetic-demo mode: every figure below comes from a locally generated synthetic intraday panel, not a live market feed.",
+  "readings": [
+    {
+      "ticker": "AAPL",
+      "chaos_index": 0.306,
+      "state_label": "stressed",
+      "components": {
+        "volatility_ratio": {
+          "available": true,
+          "value": 0.0707
+        },
+        "volume_surprise": {
+          "available": false,
+          "value": null
+        },
+        "range_spread_deterioration": {
+          "available": true,
+          "value": 1.5806,
+          "spread_bps": {
+            "available": false,
+            "value": null
+          }
+        },
+        "cross_sectional_dispersion": {
+          "available": true,
+          "value": 0.001327
+        },
+        "correlation_shift": {
+          "available": true,
+          "value": 0.1295
+        },
+        "order_flow_imbalance": {
+          "available": true,
+          "value": -0.5961,
+          "method": "tick_rule_bar_close"
+        },
+        "jump_indicator": {
+          "available": true,
+          "relative_jump": 0.8852,
+          "z_stat": 8.7862
+        },
+        "novelty": {
+          "available": false,
+          "value": null
+        }
+      },
+      "directional_probability": 0.3,
+      "calibrated": true,
+      "abstain": false,
+      "uncertainty": 0.3067,
+      "as_of": "2026-06-03T10:09:00"
+    },
+    {
+      "ticker": "MSFT",
+      "chaos_index": 0.1649,
+      "state_label": "calm",
+      "components": {
+        "volatility_ratio": {
+          "available": true,
+          "value": 0.7889
+        },
+        "volume_surprise": {
+          "available": false,
+          "value": null
+        },
+        "range_spread_deterioration": {
+          "available": true,
+          "value": 2.708,
+          "spread_bps": {
+            "available": false,
+            "value": null
+          }
+        },
+        "cross_sectional_dispersion": {
+          "available": true,
+          "value": 0.001327
+        },
+        "correlation_shift": {
+          "available": true,
+          "value": 0.1295
+        },
+        "order_flow_imbalance": {
+          "available": true,
+          "value": 0.5808,
+          "method": "tick_rule_bar_close"
+        },
+        "jump_indicator": {
+          "available": true,
+          "relative_jump": 0.0468,
+          "z_stat": 0.3619
+        },
+        "novelty": {
+          "available": false,
+          "value": null
+        }
+      },
+      "directional_probability": 0.2778,
+      "calibrated": true,
+      "abstain": false,
+      "uncertainty": 0.3123,
+      "as_of": "2026-06-03T10:09:00"
+    }
+  ]
+}

@@ -73,3 +73,38 @@ export type Trade = {
   executedAt: string; // ISO datetime
   proposalId?: string; // links back to the idea, if it came from one
 };
+
+// ---------------------------------------------------------------------------
+// WW-WATCH / IMP-04 addition — position-entry context.
+//
+// Purely additive: nothing above this line is touched, changed, or removed.
+//
+// A hand-authored snapshot of what was known/decided AT ENTRY for one open
+// position — the originating strategy, the size it was put on at, and a
+// trimmed copy of the forecast (StressVerdict + EntryExitPlan highlights) as
+// they stood then. There is no real decision-ledger / history store anywhere
+// in this codebase — verdicts and plans are generated live, on demand, and
+// never persisted (see src/app/api/models/stress/route.ts) — so this exists
+// to stand in for what a real ledger entry would capture, keyed by symbol in
+// sample-data.ts's `positionEntryContext`. Never conflate this with a live
+// EntryExitPlan or StressVerdict (src/lib/models/types.ts): it is a fixed
+// record of the past, authored by hand, not a model output.
+export type PositionEntryContext = {
+  symbol: string;
+  originatingStrategy: string; // e.g. "Distresse + Intra / Exitus"
+  weightAtEntryPct: number; // % of book this position was sized at, at entry
+  entryScoreSnapshot: {
+    rating: "go" | "conditional" | "no-go"; // mirrors models/types.ts's Rating
+    conviction: number; // 0..100, StressVerdict.conviction as it read at entry
+    regime: string; // StressVerdict.regime as it read at entry
+  };
+  forecastAtEntry: {
+    bias: "long" | "short";
+    entryZone: [number, number];
+    stop: number;
+    targets: number[];
+  };
+  decisionNote: string; // one-line human note on why this was taken
+  decidedAt: string; // ISO datetime
+  generatedBy: string; // "(sample)" tag — same convention the models layer uses
+};

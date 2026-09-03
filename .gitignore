@@ -43,3 +43,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python (the sealed engines under engine/, intra-exitus-engine/,
+# graph-engine/, weekly-engine/, chaos-engine/, path-engine/, data-router/,
+# quant-infra/)
+__pycache__/
+*.pyc

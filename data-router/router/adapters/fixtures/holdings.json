@@ -1,0 +1,4 @@
+[
+  {"portfolio_id": "demo-1", "ticker": "AAPL", "quantity": 100.0, "market_value": 18564.0, "as_of_date": "2024-01-02", "source_publication_time": "2024-01-02T21:15:00Z"},
+  {"portfolio_id": "demo-1", "ticker": "MSFT", "quantity": 40.0, "market_value": 14834.8, "as_of_date": "2024-01-02", "source_publication_time": "2024-01-02T21:15:00Z"}
+]

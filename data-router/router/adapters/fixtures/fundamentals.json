@@ -1,0 +1,6 @@
+[
+  {"ticker": "AAPL", "concept": "Revenues", "unit": "USD", "value": 119575000000.0, "period_start": "2023-10-01", "period_end": "2023-12-30", "source_publication_time": "2024-02-01T21:30:00Z"},
+  {"ticker": "AAPL", "concept": "NetIncomeLoss", "unit": "USD", "value": 33916000000.0, "period_start": "2023-10-01", "period_end": "2023-12-30", "source_publication_time": "2024-02-01T21:30:00Z"},
+  {"ticker": "MSFT", "concept": "Revenues", "unit": "USD", "value": 62020000000.0, "period_start": "2023-10-01", "period_end": "2023-12-31", "source_publication_time": "2024-01-30T21:30:00Z"},
+  {"ticker": "MSFT", "concept": "NetIncomeLoss", "unit": "USD", "value": 21870000000.0, "period_start": "2023-10-01", "period_end": "2023-12-31", "source_publication_time": "2024-01-30T21:30:00Z"}
+]

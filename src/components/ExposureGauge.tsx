@@ -5,10 +5,26 @@
 export function ExposureGauge({
   investedPct,
   size = 200,
+  asOf,
 }: {
-  investedPct: number;
+  // `null`/`undefined` means "not synced yet" — rendered as an honest empty
+  // state below, never as a fabricated 0%.
+  investedPct: number | null | undefined;
   size?: number;
+  /** The date/time the underlying account snapshot is current to. */
+  asOf?: string | null;
 }) {
+  if (investedPct == null || Number.isNaN(investedPct)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <p className="eyebrow">Not synced yet</p>
+        <p className="mt-2 max-w-[220px] text-xs text-muted">
+          No account snapshot to compute invested vs. cash from.
+        </p>
+      </div>
+    );
+  }
+
   const clamped = Math.max(0, Math.min(100, investedPct));
   const r = size / 2 - 14;
   const cx = size / 2;
@@ -26,7 +42,12 @@ export function ExposureGauge({
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox={`0 0 ${size} ${size / 2 + 16}`} className="w-full max-w-[240px]">
+      <svg
+        viewBox={`0 0 ${size} ${size / 2 + 16}`}
+        className="w-full max-w-[240px]"
+        role="img"
+        aria-label={`${clamped.toFixed(0)}% of the pool invested, ${(100 - clamped).toFixed(0)}% cash`}
+      >
         <path
           d={arc(0, 100)}
           fill="none"
@@ -70,6 +91,7 @@ export function ExposureGauge({
           Cash {(100 - clamped).toFixed(0)}%
         </span>
       </div>
+      {asOf && <p className="mt-2 text-[11px] text-muted">Data as of {asOf}</p>}
     </div>
   );
 }

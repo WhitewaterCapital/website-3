@@ -57,9 +57,12 @@ export function MacroReader({
           </span>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-muted">{data.disclaimer}</p>
+        {/* Two distinct timestamps, never merged: data as-of vs. when this run
+            was computed. */}
         <p className="mt-2 font-mono text-[11px] text-muted">
           Aurora {data.schema_version} · engine {data.engine_version} ·{" "}
-          {data.model_variant} · as of {data.as_of}
+          {data.model_variant} · data as of {data.as_of} · computed{" "}
+          {data.generated_at}
         </p>
       </div>
 
@@ -191,6 +194,17 @@ function SteadyStateCard({ s }: { s: SteadyState }) {
 function ScenarioBrowser({ scenarios }: { scenarios: Scenario[] }) {
   const [active, setActive] = useState(0);
   const s = scenarios[active];
+
+  if (!s) {
+    return (
+      <Block title="Scenarios — shocks & the economy's response">
+        <p className="text-sm text-muted">
+          Not yet available — no scenarios in this run.
+        </p>
+      </Block>
+    );
+  }
+
   const unitOf = (v: string) =>
     s.paths.find((p) => p.variable === v)?.unit ?? "pct_dev";
 

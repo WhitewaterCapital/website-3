@@ -1,0 +1,8 @@
+[
+  {"ticker": "AAPL", "date": "2024-01-02", "open": 187.15, "high": 188.44, "low": 183.89, "close": 185.64, "volume": 82488700, "source_publication_time": "2024-01-02T21:00:00Z"},
+  {"ticker": "AAPL", "date": "2024-01-03", "open": 184.22, "high": 185.88, "low": 183.43, "close": 184.25, "volume": 58414500, "source_publication_time": "2024-01-03T21:00:00Z"},
+  {"ticker": "AAPL", "date": "2024-01-04", "open": 182.15, "high": 183.09, "low": 180.88, "close": 181.91, "volume": 71983600, "source_publication_time": "2024-01-04T21:00:00Z"},
+  {"ticker": "MSFT", "date": "2024-01-02", "open": 373.86, "high": 375.90, "low": 366.66, "close": 370.87, "volume": 25258600, "source_publication_time": "2024-01-02T21:00:00Z"},
+  {"ticker": "MSFT", "date": "2024-01-03", "open": 369.44, "high": 373.00, "low": 368.79, "close": 370.60, "volume": 23083500, "source_publication_time": "2024-01-03T21:00:00Z"},
+  {"ticker": "MSFT", "date": "2024-01-04", "open": 369.94, "high": 372.05, "low": 366.50, "close": 367.94, "volume": 20960300, "source_publication_time": "2024-01-04T21:00:00Z"}
+]

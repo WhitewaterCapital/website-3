@@ -35,6 +35,12 @@ const MODULES = [
     latin: "enter · exit",
     blurb: "Entry and exit levels — where to get in, where to get out.",
   },
+  {
+    href: "/watch",
+    name: "WW-Watch",
+    latin: "keep vigil",
+    blurb: "Daily position monitor — invalidations, urgency, and the audit trail.",
+  },
 ];
 
 export default async function DeskPage() {
@@ -53,7 +59,19 @@ export default async function DeskPage() {
         </h1>
 
         {/* Module launcher */}
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex flex-wrap justify-end gap-x-6 gap-y-1">
+          <Link
+            href="/performance"
+            className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
+          >
+            Performance attribution →
+          </Link>
+          <Link
+            href="/visuals"
+            className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
+          >
+            Visuals →
+          </Link>
           <Link
             href="/models"
             className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
@@ -116,6 +134,8 @@ export default async function DeskPage() {
                 <LineChart
                   labels={labels}
                   yFormat={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`}
+                  yAxisLabel="Cumulative return since inception (%)"
+                  asOf={m.latest.date}
                   series={[
                     { values: m.portIndexed.map((v) => v - 100), color: "currentColor", label: "Us" },
                     { values: m.spyIndexed.map((v) => v - 100), color: "#9ca3af", label: "SPY" },
@@ -125,7 +145,7 @@ export default async function DeskPage() {
             </div>
             <Card title="Exposure">
               <div className="flex h-full items-center justify-center py-4">
-                <ExposureGauge investedPct={m.exposure.investedPct} />
+                <ExposureGauge investedPct={m.exposure.investedPct} asOf={m.latest.date} />
               </div>
             </Card>
           </div>

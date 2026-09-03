@@ -28,17 +28,31 @@ export function IntraExitusReader({ data }: { data: IntraExitusExport }) {
           </span>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-muted">{data.disclaimer}</p>
+        {/* Two distinct timestamps, never merged into one "freshness" figure:
+            `as_of` is what the data is current to, `generated_at` is when this
+            run computed it. */}
         <p className="mt-2 font-mono text-[11px] text-muted">
-          Intra/Exitus {data.schema_version} · engine {data.engine_version} · as of{" "}
-          {data.as_of} · {actionable.length}/{data.plans.length} with a setup
+          Intra/Exitus {data.schema_version} · engine {data.engine_version} · data
+          as of {data.as_of} · computed {data.generated_at} ·{" "}
+          {actionable.length}/{data.plans.length} with a setup
         </p>
       </div>
 
-      <div className="space-y-4">
-        {data.plans.map((p) => (
-          <PlanCard key={p.ticker} p={p} />
-        ))}
-      </div>
+      {data.plans.length === 0 ? (
+        <Card>
+          <p className="eyebrow">No plans this run</p>
+          <p className="mt-2 text-sm text-foreground/80">
+            The engine ran but produced no plans for the current universe —
+            an honest empty result, not a sync failure.
+          </p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {data.plans.map((p) => (
+            <PlanCard key={p.ticker} p={p} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -52,7 +66,9 @@ function PlanCard({ p }: { p: IntraExitusPlan }) {
           <h3 className="text-lg font-semibold">{p.ticker}</h3>
           <span className="text-sm text-muted tabular-nums">{px(p.lastClose)}</span>
           {!abstain && (
-            <Badge tone={p.bias === "short" ? "down" : "up"}>{p.bias}</Badge>
+            <Badge tone={p.bias === "short" ? "down" : p.bias === "long" ? "up" : "neutral"}>
+              {p.bias}
+            </Badge>
           )}
         </div>
         <Badge tone={confTone[p.confidence]}>{p.confidence}</Badge>

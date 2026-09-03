@@ -1,0 +1,4 @@
+[
+  {"ticker": "AAPL", "headline": "Apple opens pre-orders for new product line", "url": "https://example.invalid/news/aapl-1", "sentiment": 0.4, "publish_date": "2024-01-03", "source_publication_time": "2024-01-03T14:05:00Z"},
+  {"ticker": null, "headline": "Fed holds rates steady, cites cooling inflation", "url": "https://example.invalid/news/macro-1", "sentiment": 0.1, "publish_date": "2024-01-31", "source_publication_time": "2024-01-31T19:05:00Z"}
+]

@@ -1,0 +1,4 @@
+[
+  {"ticker": "AAPL", "action_type": "split", "effective_date": "2020-08-31", "details": {"ratio": 4.0}, "source_publication_time": "2020-07-30T20:05:00Z"},
+  {"ticker": "MSFT", "action_type": "dividend", "effective_date": "2023-11-15", "details": {"amount": 0.75}, "source_publication_time": "2023-11-29T20:05:00Z"}
+]

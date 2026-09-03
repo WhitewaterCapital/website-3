@@ -31,6 +31,46 @@
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/* VIS-01 visual layer — validated chart palette (see the dataviz skill's  */
+/* palette.md; ordering is a CVD-safety mechanism, never cycle or reorder */
+/* per-chart). Six fixed categorical slots (sector identity in            */
+/* DislocationField/CascadeNetwork) + a fixed four-step status ramp       */
+/* (calm -> cascade) mirroring chaos-engine/chaos/state.py's STATE_LEVELS.*/
+/* Every use of these pairs a swatch with a text label — never color      */
+/* alone. Validated with scripts/validate_palette.js (adjacent-pair gate; */
+/* six categorical series exceed the all-pairs-safe cap of three, so      */
+/* DislocationField/CascadeNetwork add a distinct marker shape per sector */
+/* as a secondary channel). */
+:root {
+  --viz-cat-1: #2a78d6; /* blue */
+  --viz-cat-2: #eb6834; /* orange */
+  --viz-cat-3: #1baf7a; /* aqua */
+  --viz-cat-4: #eda100; /* yellow */
+  --viz-cat-5: #e87ba4; /* magenta */
+  --viz-cat-6: #008300; /* green */
+  --viz-status-calm: #0ca30c;
+  --viz-status-stressed: #fab219;
+  --viz-status-dislocated: #ec835a;
+  --viz-status-cascade: #d03b3b;
+  --viz-grey: #9a948c; /* abstained / greyed-out / insufficient-confidence points */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --viz-cat-1: #3987e5;
+    --viz-cat-2: #d95926;
+    --viz-cat-3: #199e70;
+    --viz-cat-4: #c98500;
+    --viz-cat-5: #d55181;
+    --viz-cat-6: #008300;
+    --viz-status-calm: #0ca30c;
+    --viz-status-stressed: #fab219;
+    --viz-status-dislocated: #ec835a;
+    --viz-status-cascade: #d03b3b;
+    --viz-grey: #726c65;
+  }
+}
+
 /* GSA-style flowing gradient mesh for the hero */
 .mesh {
   background-color: #d9695a;

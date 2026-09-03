@@ -50,23 +50,34 @@ export function EquityReader({ data }: { data: EquityExport }) {
         <p className="mt-3 text-xs leading-relaxed text-muted">
           {data.disclaimer}
         </p>
+        {/* Two distinct timestamps, never merged: data as-of vs. when this run
+            was computed. */}
         <p className="mt-2 font-mono text-[11px] text-muted">
-          Incepta {data.schema_version} · engine {data.engine_version} · as of{" "}
-          {data.as_of} · {data.universe.length} names
+          Incepta {data.schema_version} · engine {data.engine_version} · data as
+          of {data.as_of} · computed {data.generated_at} · {data.universe.length}{" "}
+          names
         </p>
       </div>
 
       <AnalyzeTicker universe={data.universe} />
 
-      <RankingsTable rankings={data.rankings.quality} asOf={data.as_of} />
+      {data.rankings.quality.length > 0 && (
+        <RankingsTable rankings={data.rankings.quality} asOf={data.as_of} />
+      )}
 
       <div>
         <h3 className="eyebrow mb-3">Securities · {data.securities.length}</h3>
-        <div className="space-y-4">
-          {data.securities.map((s) => (
-            <SecurityCard key={s.ticker} s={s} />
-          ))}
-        </div>
+        {data.securities.length === 0 ? (
+          <p className="text-sm text-muted">
+            No securities in this run&apos;s universe yet.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {data.securities.map((s) => (
+              <SecurityCard key={s.ticker} s={s} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
