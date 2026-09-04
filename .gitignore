@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the WHITEWATCH template — a blank/documented example with no
+# real values, meant to be committed so anyone cloning knows which optional
+# keys exist. .env.local itself (which ships with two real keys filled in
+# for local dev) stays ignored by the blanket rule above.
+!.env.local.example
 
 # vercel
 .vercel

@@ -1,0 +1,22 @@
+{
+  "_comment": "Keyed by the exact country name string used in the world-atlas/Natural Earth dataset (properties.name), so the frontend can join by name with no ID lookup. Every country not listed here defaults to 'stable' in the UI — this is what makes the map 'measure' all ~180 countries, not just active conflicts. Tiers reflect active armed conflict / insurgency involvement only (an objective, documented fact), not a general geopolitical risk score — see README for the reasoning.",
+  "Ukraine": "critical",
+  "Israel": "critical",
+  "Palestine": "critical",
+  "Sudan": "critical",
+  "Yemen": "high",
+  "Iran": "high",
+  "Lebanon": "high",
+  "Syria": "medium",
+  "North Korea": "medium",
+  "Mali": "high",
+  "Niger": "medium",
+  "Burkina Faso": "high",
+  "Dem. Rep. Congo": "high",
+  "Myanmar": "high",
+  "Somalia": "high",
+  "Afghanistan": "high",
+  "S. Sudan": "medium",
+  "Russia": "medium",
+  "Taiwan": "medium"
+}

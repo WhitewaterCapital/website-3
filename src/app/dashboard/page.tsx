@@ -51,6 +51,12 @@ const MODULES = [
     latin: "the weekly rank",
     blurb: "Ranked weekly cross-section — who's expected to lead, who's expected to lag.",
   },
+  {
+    href: "/war-map",
+    name: "WHITEWATCH",
+    latin: "watch abroad",
+    blurb: "Geopolitical conflict monitoring — live threat map, intel feed, and macro indicators. Not a pricing model — external context for the book.",
+  },
 ];
 
 export default async function DeskPage() {
