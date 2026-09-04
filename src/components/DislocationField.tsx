@@ -219,12 +219,17 @@ export function DislocationField({ data }: { data: GraphExport | null }) {
                 : yTopBand + jitter(r.ticker);
             return (
               <g key={r.ticker}>
-                <title>
-                  {r.ticker} · {name} · residual z {r.residual_z.toFixed(2)}
-                  {r.half_life_significant && r.half_life_days != null
+                {/* A single template-string child, not several interpolated
+                    nodes — React's DOM renderer special-cases <title> to a
+                    lone string child and silently renders it EMPTY server-side
+                    when given more than one, then fills it in on the client,
+                    which is a real (reproduced) hydration mismatch, not a
+                    cosmetic one. */}
+                <title>{`${r.ticker} · ${name} · residual z ${r.residual_z.toFixed(2)}${
+                  r.half_life_significant && r.half_life_days != null
                     ? ` · half-life ${r.half_life_days.toFixed(1)}d`
-                    : " · no significant reversion"}
-                </title>
+                    : " · no significant reversion"
+                }`}</title>
                 <Marker shape={idx} color={color} x={px} y={py} />
               </g>
             );

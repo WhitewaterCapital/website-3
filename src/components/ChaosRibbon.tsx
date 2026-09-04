@@ -147,9 +147,11 @@ export function ChaosRibbon({
                 fill={color}
                 fillOpacity={0.25 + intensity * 0.65}
               >
-                <title>
-                  {p.asOf} · {p.state} · chaos index {intensity.toFixed(2)}
-                </title>
+                {/* Single template-string child — see DislocationField.tsx's
+                    comment: <title> with several interpolated children
+                    renders EMPTY server-side and gets filled client-side,
+                    a real hydration mismatch, not just a lint nit. */}
+                <title>{`${p.asOf} · ${p.state} · chaos index ${intensity.toFixed(2)}`}</title>
               </rect>
             );
           })}

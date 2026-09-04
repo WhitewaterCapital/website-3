@@ -165,9 +165,11 @@ export function CascadeNetwork({
                 strokeOpacity={0.15 + edgePressure * 0.7}
                 strokeWidth={1 + (h.weight / maxWeight) * 6}
               >
-                <title>
-                  {h.fund} → {h.constituent} · weight {(h.weight * 100).toFixed(0)}%
-                </title>
+                {/* Single template-string child — see DislocationField.tsx's
+                    comment: <title> with several interpolated children
+                    renders EMPTY server-side and gets filled client-side,
+                    a real hydration mismatch, not just a lint nit. */}
+                <title>{`${h.fund} → ${h.constituent} · weight ${(h.weight * 100).toFixed(0)}%`}</title>
               </line>
             );
           })}
@@ -187,9 +189,9 @@ export function CascadeNetwork({
                   stroke="currentColor"
                   strokeOpacity={0.3}
                 >
-                  <title>
-                    {c} · pressure {pr.toFixed(2)}
-                  </title>
+                  {/* Single template-string child — see DislocationField.tsx's
+                      comment on why <title> needs exactly one string child. */}
+                  <title>{`${c} · pressure ${pr.toFixed(2)}`}</title>
                 </circle>
                 <text x={p.x} y={p.y + 24} textAnchor="middle" fontSize={10} className="fill-foreground/70">
                   {c}
@@ -220,10 +222,9 @@ export function CascadeNetwork({
                   stroke="currentColor"
                   strokeOpacity={0.4}
                 >
-                  <title>
-                    {f} · pressure {pr.toFixed(2)}
-                    {f === sourceFund ? " · shock origin" : ""}
-                  </title>
+                  {/* Single template-string child — see DislocationField.tsx's
+                      comment on why <title> needs exactly one string child. */}
+                  <title>{`${f} · pressure ${pr.toFixed(2)}${f === sourceFund ? " · shock origin" : ""}`}</title>
                 </rect>
                 <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize={10} className="fill-foreground font-medium">
                   {f.replace("Sample ETF ", "")}
