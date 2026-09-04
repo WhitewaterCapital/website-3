@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
-import maplibregl from 'maplibre-gl';
+// maplibre-gl 6.x ships pure ESM with no default export (confirmed against
+// the real installed package). A namespace import gives back the exact
+// same maplibregl.Map / maplibregl.Marker / maplibregl.NavigationControl
+// call shape this file already uses.
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as topojson from 'topojson-client';
 import worldTopology from 'world-atlas/countries-110m.json';
