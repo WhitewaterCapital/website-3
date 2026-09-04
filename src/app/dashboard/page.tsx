@@ -16,6 +16,12 @@ import { usd, pct, shortDate, num } from "@/lib/format";
 // with its own algo backend), portfolio/holdings below.
 const MODULES = [
   {
+    href: "/hub",
+    name: "Ticker Hub",
+    latin: "search any name, get everything",
+    blurb: "Type a commodity, equity, or FX ticker — every model's read on it, in one place, with comparison.",
+  },
+  {
     href: "/sentiment",
     name: "Sentiment",
     latin: "macro + equity read",
