@@ -277,7 +277,9 @@ function ScenarioBrowser({ scenarios }: { scenarios: Scenario[] }) {
           </table>
         </div>
 
-        {/* Impulse-response paths as sparklines */}
+        {/* Impulse-response paths — one small chart per variable, each with
+            real y-axis values (in the variable's own unit) and an x-axis of
+            quarters after the shock, not a bare unlabeled line. */}
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {s.paths.map((p) => (
             <div key={p.variable}>
@@ -287,7 +289,7 @@ function ScenarioBrowser({ scenarios }: { scenarios: Scenario[] }) {
                 </span>
                 <span className="font-mono text-[10px] text-muted">{p.unit}</span>
               </div>
-              <PathSparkline path={p.path} />
+              <PathChart path={p.path} unit={p.unit} />
             </div>
           ))}
         </div>
@@ -301,32 +303,98 @@ function ScenarioBrowser({ scenarios }: { scenarios: Scenario[] }) {
   );
 }
 
-function PathSparkline({ path }: { path: (number | null)[] }) {
-  const width = 240;
-  const height = 48;
+// A small impulse-response chart, one per macro variable: y-axis in the
+// variable's own unit (bps or %), a highlighted zero line, and x-axis ticks
+// in quarters after the shock. Replaces a bare unlabeled sparkline — the
+// point of the chart (how big, by when, back to zero or not) needs real
+// axes to read, not just a line shape.
+function PathChart({ path, unit }: { path: (number | null)[]; unit: string }) {
+  const width = 260;
+  const height = 118;
+  const padL = 34;
+  const padR = 8;
+  const padT = 8;
+  const padB = 18;
+
   const pts = path
     .map((v, i) => ({ i, v }))
     .filter((p): p is { i: number; v: number } => p.v != null);
-  if (pts.length < 2)
-    return <div className="mt-1 text-xs text-muted">— no path</div>;
+
+  if (pts.length < 2) {
+    return (
+      <div
+        className="mt-1 flex items-center justify-center border border-dashed border-hairline text-xs text-muted"
+        style={{ height }}
+      >
+        No path data.
+      </div>
+    );
+  }
 
   const vals = pts.map((p) => p.v);
   const min = Math.min(0, ...vals);
   const max = Math.max(0, ...vals);
   const span = max - min || 1;
+  const yMin = min - span * 0.1;
+  const yMax = max + span * 0.1;
   const n = path.length;
-  const x = (i: number) => (i / (n - 1)) * width;
-  const y = (v: number) => height - ((v - min) / span) * (height - 6) - 3;
+
+  const x = (i: number) => padL + (i / Math.max(1, n - 1)) * (width - padL - padR);
+  const y = (v: number) => padT + (1 - (v - yMin) / (yMax - yMin)) * (height - padT - padB);
 
   const line = pts
     .map((p, k) => `${k === 0 ? "M" : "L"} ${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`)
     .join(" ");
-  const zeroY = y(0);
+
+  const fmt = (v: number) => (unit === "bps" ? v.toFixed(0) : v.toFixed(1));
+  const yTicks = Array.from(new Set([yMax, 0, yMin]));
+
+  const firstI = pts[0].i;
+  const lastI = pts[pts.length - 1].i;
+  const midI = Math.round((firstI + lastI) / 2);
+  const xTicks =
+    midI !== firstI && midI !== lastI ? [firstI, midI, lastI] : [firstI, lastI];
+
+  const last = pts[pts.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-1 w-full text-foreground">
-      <line x1={0} x2={width} y1={zeroY} y2={zeroY} className="stroke-foreground/15" strokeWidth={1} />
-      <path d={line} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-1 w-full text-foreground"
+      role="img"
+      aria-label={`Impulse response path, in ${unit}, over ${n} quarters`}
+    >
+      {yTicks.map((v, i) => (
+        <g key={i}>
+          <line
+            x1={padL}
+            x2={width - padR}
+            y1={y(v)}
+            y2={y(v)}
+            className={v === 0 ? "stroke-foreground/30" : "stroke-foreground/10"}
+            strokeWidth={1}
+          />
+          <text x={padL - 6} y={y(v) + 3} textAnchor="end" className="fill-foreground/45" fontSize={8}>
+            {fmt(v)}
+          </text>
+        </g>
+      ))}
+
+      {xTicks.map((i, k) => (
+        <text
+          key={k}
+          x={x(i)}
+          y={height - 4}
+          textAnchor={k === 0 ? "start" : k === xTicks.length - 1 ? "end" : "middle"}
+          className="fill-foreground/45"
+          fontSize={8}
+        >
+          Q{i}
+        </text>
+      ))}
+
+      <path d={line} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={x(last.i)} cy={y(last.v)} r={2.25} fill="currentColor" />
     </svg>
   );
 }
