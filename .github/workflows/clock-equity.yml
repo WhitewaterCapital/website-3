@@ -1,0 +1,76 @@
+name: Clock — equity (WW-WEEKLY, WW-GRAPH, WW-ALLOC)
+
+# ORCH-01 / IMP-07 — the equity clock, on its real 1h cadence
+# (quant-infra/orch/clocks/three_clocks.py's EQUITY_CLOCK). Runs
+# `scripts/run_clock.py equity`, which:
+#   - checks the REAL MarketHoursGate against the REAL stored NYSE calendar
+#     (data-router/router/universe_publish/calendar_data.py) — equity IS
+#     scoped to the NYSE session, so most hourly firings outside 9:30-16:00
+#     ET (and all weekend/holiday firings) are expected to be a clean,
+#     logged skip, not an error,
+#   - checks ops/clock_runs/equity.jsonl for idempotent replay,
+#   - and, if allowed to run, invokes all three real engine exports this
+#     repo's own model registry assigns to the hourly-during-market-hours
+#     cadence: weekly-engine/wf/export.py, graph-engine/ge/export.py, and
+#     quant-infra/alloc/export.py — writing public/data/weekly/latest.json,
+#     public/data/graph/latest.json, and public/data/alloc/latest.json.
+#
+# GitHub Actions scheduled workflows only fire once this file exists on the
+# repository's DEFAULT branch — see SCHEDULING.md for what merging this
+# actually requires, and why that cannot be verified from this sandbox
+# (no GitHub access here).
+
+on:
+  schedule:
+    - cron: "0 * * * *" # hourly, UTC — the market-hours gate (not this cron
+      # expression) is what actually keeps this to NYSE session hours; see
+      # SCHEDULING.md's honest caveat that GitHub does not guarantee
+      # scheduled workflows fire exactly on the hour.
+  workflow_dispatch: {} # manual trigger from the Actions tab
+
+concurrency:
+  group: clock-equity
+  cancel-in-progress: false # overlapping runs queue rather than race
+
+permissions:
+  contents: write # needed to commit/push the exports + run-log back to the branch
+
+jobs:
+  run-equity-clock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # weekly-engine (wf.export) and graph-engine (ge.export) — between
+          # them this already covers everything quant-infra/alloc/export.py
+          # needs too (numpy, scipy, scikit-learn), since quant-infra/alloc
+          # has no requirements.txt of its own (see SCHEDULING.md).
+          pip install -r weekly-engine/requirements.txt
+          pip install -r graph-engine/requirements.txt
+          # scripts/run_clock.py's own market-hours-gate import chain needs
+          # networkx (scheduler.py) — not covered by either engine above.
+          pip install networkx
+
+      - name: Run the equity clock
+        run: python scripts/run_clock.py equity
+
+      - name: Commit and push any changed exports / run log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/weekly public/data/graph public/data/alloc ops/clock_runs
+          if git diff --cached --quiet; then
+            echo "No changes to commit (clean skip or no-op run)."
+          else
+            git commit -m "chore(clock): equity run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi

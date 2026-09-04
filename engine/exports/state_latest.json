@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-03T04:36:46.287250",
-  "as_of": "2026-09-03",
+  "generated_at": "2026-09-04T08:39:29.800713",
+  "as_of": "2026-09-04",
   "state_vector": {
     "schema_version": "1.0.0",
     "element_order": [
@@ -14,31 +14,31 @@
       "slippage",
       "liquidity"
     ],
-    "as_of": "2026-09-03",
+    "as_of": "2026-09-04",
     "volatility": {
       "available": true,
-      "value": 0.17463409555298193,
+      "value": 0.17463409555297138,
       "raw": {
         "windows": {
           "21": {
-            "realized_vol": 0.13583176118642096,
-            "history_mean": 0.13944243285007082,
-            "history_std": 0.022685092785730682,
-            "z": -0.15916495020558358,
+            "realized_vol": 0.1509241790960225,
+            "history_mean": 0.15493603650007867,
+            "history_std": 0.025205658650811914,
+            "z": -0.1591649502056141,
             "n_obs": 880
           },
           "63": {
-            "realized_vol": 0.14882786343672189,
-            "history_mean": 0.1417313188994819,
-            "history_std": 0.012781177158827428,
-            "z": 0.555234032754072,
+            "realized_vol": 0.1653642927074688,
+            "history_mean": 0.15747924322164658,
+            "history_std": 0.014201307954252689,
+            "z": 0.5552340327540735,
             "n_obs": 838
           },
           "252": {
-            "realized_vol": 0.1444062290954631,
-            "history_mean": 0.1439663660621504,
-            "history_std": 0.0034409137780245617,
-            "z": 0.1278332041104573,
+            "realized_vol": 0.16045136566162563,
+            "history_mean": 0.15996262895794486,
+            "history_std": 0.003823237531138428,
+            "z": 0.1278332041104548,
             "n_obs": 649
           }
         },
@@ -52,11 +52,11 @@
     },
     "dispersion": {
       "available": true,
-      "value": 0.24079890361296857,
+      "value": 0.24079890361296957,
       "raw": {
-        "cross_sectional_std": 0.012438471939662679,
-        "history_mean": 0.012031247868578093,
-        "history_std": 0.0016911375632303915,
+        "cross_sectional_std": 0.013934986382042082,
+        "history_mean": 0.013478767811744181,
+        "history_std": 0.0018946040179284615,
         "n_obs": 900
       },
       "notes": [],
@@ -64,12 +64,12 @@
     },
     "correlation": {
       "available": true,
-      "value": -0.0638576154823618,
+      "value": -0.1115246305600947,
       "raw": {
-        "avg_pairwise_corr": 0.12860930839469822,
-        "z_level": 0.5230007459668472,
-        "rate_of_change": -0.010174065625501855,
-        "z_rate_of_change": -0.6507159769315708,
+        "avg_pairwise_corr": 0.09324227753629638,
+        "z_level": 0.41992004774867964,
+        "rate_of_change": -0.008522604313669593,
+        "z_rate_of_change": -0.642969308868869,
         "window": 63,
         "roc_lag_days": 21
       },
@@ -78,12 +78,12 @@
     },
     "breadth": {
       "available": true,
-      "value": -0.7890174524083271,
+      "value": -0.45640324773308383,
       "raw": {
         "share_above_own_ma": 0.44,
-        "z_share_above_own_ma": -0.7444209577930779,
-        "advance_decline_balance": -0.28,
-        "z_advance_decline_balance": -0.8336139470235764,
+        "z_share_above_own_ma": -0.5152996078709198,
+        "advance_decline_balance": -0.12,
+        "z_advance_decline_balance": -0.3975068875952478,
         "ma_window": 200
       },
       "notes": [],
@@ -91,22 +91,22 @@
     },
     "trend": {
       "available": true,
-      "value": -1.1898656671829244,
+      "value": -1.187749522706895,
       "raw": {
         "horizons": {
           "21": {
-            "momentum": -0.07043056731010211,
-            "z": -1.7994874757136798,
+            "momentum": -0.08084573772919523,
+            "z": -1.793048839617783,
             "n_obs": 880
           },
           "63": {
-            "momentum": -0.03567702073822265,
-            "z": -0.7045031091057475,
+            "momentum": -0.04858946867508718,
+            "z": -0.7059119938543988,
             "n_obs": 838
           },
           "252": {
-            "momentum": -0.08393176167773653,
-            "z": -1.0656064167293455,
+            "momentum": -0.12638036583287915,
+            "z": -1.0642877346485033,
             "n_obs": 649
           }
         },
@@ -124,11 +124,11 @@
     },
     "liquidity": {
       "available": true,
-      "value": -0.1643837703834195,
+      "value": -0.21500705520795585,
       "raw": {
         "spread_window": 21,
-        "spread_bps": 15.454086503655935,
-        "z_liquidity_from_spread": 0.5208513486624619,
+        "spread_bps": 14.644829292379205,
+        "z_liquidity_from_spread": 0.41960477901338916,
         "volume": 1271271.9393613655,
         "z_liquidity_from_volume": -0.8496188894293009
       },

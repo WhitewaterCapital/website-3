@@ -1,0 +1,78 @@
+name: Clock — chaos (WW-CHAOS)
+
+# ORCH-01 / IMP-07 — the chaos clock, on its real "1-5min" cadence
+# (quant-infra/orch/clocks/three_clocks.py's CHAOS_CLOCK). Runs
+# `scripts/run_clock.py chaos`, which:
+#   - checks the REAL MarketHoursGate against the REAL stored NYSE calendar —
+#     chaos monitoring only means anything while the venue is live, so most
+#     firings outside NYSE session hours are expected to be a clean, logged
+#     skip, not an error,
+#   - checks ops/clock_runs/chaos.jsonl for idempotent replay (the spec's own
+#     "1-5min" cadence means a firing inside 5 minutes of the last real
+#     success is correctly reported as already-ran, not a bug),
+#   - and, if allowed to run, invokes the real chaos-engine/chaos/export.py
+#     export, writing public/data/chaos/latest.json.
+#
+# HONEST CAVEAT (see SCHEDULING.md for the fuller version): GitHub Actions'
+# documented practical floor for `schedule` is about once every 5 minutes,
+# and GitHub explicitly does NOT guarantee scheduled workflows fire at their
+# exact scheduled time, especially under platform load — a `*/5` cron here
+# is a best-effort approximation of the design doc's "1 to 5 minutes," not a
+# real-time guarantee. A real "1-5min" cadence, if this ever needs to be
+# tighter than GitHub's scheduler can reliably deliver, would need a
+# self-hosted runner or an external always-on scheduler triggering
+# `workflow_dispatch` instead of relying on GitHub's own `schedule` trigger.
+#
+# GitHub Actions scheduled workflows only fire once this file exists on the
+# repository's DEFAULT branch — see SCHEDULING.md for what merging this
+# actually requires, and why that cannot be verified from this sandbox
+# (no GitHub access here).
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # every 5 minutes, UTC, best-effort (see caveat above)
+  workflow_dispatch: {} # manual trigger from the Actions tab
+
+concurrency:
+  group: clock-chaos
+  cancel-in-progress: false # overlapping runs queue rather than race
+
+permissions:
+  contents: write # needed to commit/push the export + run-log back to the branch
+
+jobs:
+  run-chaos-clock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # chaos-engine (chaos.export) — what the export itself needs.
+          pip install -r chaos-engine/requirements.txt
+          # scripts/run_clock.py's own market-hours-gate import chain needs
+          # networkx (scheduler.py) — quant-infra/orch has no requirements.txt
+          # of its own (see SCHEDULING.md); pandas is already covered above.
+          pip install networkx
+
+      - name: Run the chaos clock
+        run: python scripts/run_clock.py chaos
+
+      - name: Commit and push any changed exports / run log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/chaos ops/clock_runs
+          if git diff --cached --quiet; then
+            echo "No changes to commit (clean skip or no-op run)."
+          else
+            git commit -m "chore(clock): chaos run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi
