@@ -13,6 +13,7 @@ import { runChecks, type PositionCheck, type CheckSeverity } from "@/lib/watch/c
 import { computeUrgency, logUrgencyPrediction, listScoreHistory, type UrgencyResult } from "@/lib/watch/urgency";
 import { buildDailyDigest } from "@/lib/watch/slack";
 import { can, listAudit, appendAudit, type Role } from "@/lib/watch/roles";
+import { DigestPanel } from "@/components/panels/DigestPanel";
 
 // WW-WATCH — the position monitor (WATCH-01/02/03) + IMP-04's position detail
 // view, combined into one page: with only four sample positions, a single
@@ -118,17 +119,7 @@ export default async function WatchPage() {
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
-          <Card title="Sample daily digest (WATCH-03)">
-            <p className="mb-3 text-xs text-muted">
-              What <code className="text-foreground/80">buildDailyDigest()</code> produces from the checks above —
-              this is the message a <code className="text-foreground/80">Notifier</code> (ConsoleNotifier in dev,
-              SlackWebhookNotifier once <code className="text-foreground/80">SLACK_WEBHOOK_URL</code> is set) would
-              deliver. Nothing is actually sent from this page.
-            </p>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap border border-hairline bg-background p-3 text-xs">
-              {digest}
-            </pre>
-          </Card>
+          <DigestPanel positionChecks={results.map((r) => r.check)} urgencies={urgencyBySymbol} rawText={digest} />
 
           <Card title="Score the scorer (WATCH-02)">
             <p className="mb-3 text-xs text-muted">
