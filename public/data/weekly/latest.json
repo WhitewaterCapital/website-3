@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-04T08:39:43.355274+00:00",
+  "generated_at": "2026-09-04T10:09:14.028656+00:00",
   "as_of": "2021-02-12",
   "universe": [
     "AAPL",
@@ -243,17 +243,17 @@
   "validation": {
     "n_folds": 4,
     "ridge_mean_rank_ic": 0.0229,
-    "gbm_mean_rank_ic": 0.0058,
+    "gbm_mean_rank_ic": -0.0023,
     "ridge_mean_hit_rate": 0.5104,
-    "gbm_mean_hit_rate": 0.5011,
+    "gbm_mean_hit_rate": 0.496,
     "ridge_mean_decile_spread": -0.002,
-    "gbm_mean_decile_spread": -0.0016,
+    "gbm_mean_decile_spread": 0.0003,
     "ridge_turnover": 0.2565,
-    "gbm_turnover": 0.2433,
+    "gbm_turnover": 0.2471,
     "ridge_deflated_sharpe": 0.6615,
-    "gbm_deflated_sharpe": 0.1595,
+    "gbm_deflated_sharpe": 0.3747,
     "gbm_beats_baseline": false,
-    "gbm_beats_baseline_reason": "GBM mean rank IC (0.0058) is below the materiality floor (0.02) \u2014 not distinguishable from noise even if nominally positive",
+    "gbm_beats_baseline_reason": "GBM mean rank IC (-0.0023) is below the materiality floor (0.02) \u2014 not distinguishable from noise even if nominally positive",
     "model_version_published": "ridge-1.0"
   }
 }
