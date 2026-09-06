@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-05T00:20:56.344655",
-  "as_of": "2026-09-05",
+  "generated_at": "2026-09-06T00:22:33.084211",
+  "as_of": "2026-09-06",
   "state_vector": {
     "schema_version": "1.0.0",
     "element_order": [
@@ -14,7 +14,7 @@
       "slippage",
       "liquidity"
     ],
-    "as_of": "2026-09-05",
+    "as_of": "2026-09-06",
     "volatility": {
       "available": true,
       "value": 0.17463409555297138,
@@ -64,12 +64,12 @@
     },
     "correlation": {
       "available": true,
-      "value": -0.1115246305600947,
+      "value": -0.1115246305600942,
       "raw": {
         "avg_pairwise_corr": 0.09324227753629638,
         "z_level": 0.41992004774867964,
-        "rate_of_change": -0.008522604313669593,
-        "z_rate_of_change": -0.642969308868869,
+        "rate_of_change": -0.00852260431366958,
+        "z_rate_of_change": -0.642969308868868,
         "window": 63,
         "roc_lag_days": 21
       },
@@ -124,11 +124,11 @@
     },
     "liquidity": {
       "available": true,
-      "value": -0.21500705520795585,
+      "value": -0.2150070552079538,
       "raw": {
         "spread_window": 21,
         "spread_bps": 14.644829292379205,
-        "z_liquidity_from_spread": 0.41960477901338916,
+        "z_liquidity_from_spread": 0.41960477901339327,
         "volume": 1271271.9393613655,
         "z_liquidity_from_volume": -0.8496188894293009
       },
