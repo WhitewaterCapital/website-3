@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-10T11:36:24.883508+00:00",
+  "generated_at": "2026-09-10T11:52:10.220972+00:00",
   "as_of": "2026-07-10T11:29:00",
   "watchlist": [
     "AAPL",
@@ -15,20 +15,20 @@
   "readings": [
     {
       "ticker": "AAPL",
-      "chaos_index": 0.111,
+      "chaos_index": 0.1824,
       "state_label": "calm",
       "components": {
         "volatility_ratio": {
           "available": true,
-          "value": 0.5932
+          "value": 0.92
         },
         "volume_surprise": {
           "available": true,
-          "value": -2.8799
+          "value": 0.4837
         },
         "range_spread_deterioration": {
           "available": true,
-          "value": 7.0353,
+          "value": 6.5289,
           "spread_bps": {
             "available": false,
             "value": null
@@ -36,49 +36,49 @@
         },
         "cross_sectional_dispersion": {
           "available": true,
-          "value": 0.000757
+          "value": 0.000866
         },
         "correlation_shift": {
           "available": true,
-          "value": -0.0489
+          "value": 0.0803
         },
         "order_flow_imbalance": {
           "available": true,
-          "value": -0.0952,
+          "value": 0.2105,
           "method": "tick_rule_bar_close"
         },
         "jump_indicator": {
           "available": true,
-          "relative_jump": 0.0909,
-          "z_stat": 0.8581
+          "relative_jump": 0.1917,
+          "z_stat": 1.8068
         },
         "novelty": {
           "available": false,
           "value": null
         }
       },
-      "directional_probability": 0.5116,
+      "directional_probability": 0.4494,
       "calibrated": true,
-      "abstain": true,
-      "uncertainty": 0.0201,
+      "abstain": false,
+      "uncertainty": 0.0306,
       "as_of": "2026-07-10T11:29:00"
     },
     {
       "ticker": "MSFT",
-      "chaos_index": 0.1394,
+      "chaos_index": 0.1242,
       "state_label": "calm",
       "components": {
         "volatility_ratio": {
           "available": true,
-          "value": 0.9084
+          "value": 0.8494
         },
         "volume_surprise": {
           "available": true,
-          "value": 0.009
+          "value": 0.0089
         },
         "range_spread_deterioration": {
           "available": true,
-          "value": 7.6821,
+          "value": 3.6822,
           "spread_bps": {
             "available": false,
             "value": null
@@ -86,49 +86,49 @@
         },
         "cross_sectional_dispersion": {
           "available": true,
-          "value": 0.000757
+          "value": 0.000866
         },
         "correlation_shift": {
           "available": true,
-          "value": -0.0489
+          "value": 0.0803
         },
         "order_flow_imbalance": {
           "available": true,
-          "value": -0.249,
+          "value": 0.224,
           "method": "tick_rule_bar_close"
         },
         "jump_indicator": {
           "available": true,
-          "relative_jump": -0.1382,
-          "z_stat": -1.372
+          "relative_jump": -0.0959,
+          "z_stat": -0.9518
         },
         "novelty": {
           "available": false,
           "value": null
         }
       },
-      "directional_probability": 0.5259,
+      "directional_probability": 0.4697,
       "calibrated": true,
       "abstain": true,
-      "uncertainty": 0.057,
+      "uncertainty": 0.0882,
       "as_of": "2026-07-10T11:29:00"
     },
     {
       "ticker": "NVDA",
-      "chaos_index": 0.2228,
+      "chaos_index": 0.172,
       "state_label": "calm",
       "components": {
         "volatility_ratio": {
           "available": true,
-          "value": 0.4807
+          "value": 0.4686
         },
         "volume_surprise": {
           "available": true,
-          "value": -1.8571
+          "value": 1.7883
         },
         "range_spread_deterioration": {
           "available": true,
-          "value": 31.8081,
+          "value": 15.9858,
           "spread_bps": {
             "available": false,
             "value": null
@@ -136,49 +136,49 @@
         },
         "cross_sectional_dispersion": {
           "available": true,
-          "value": 0.000757
+          "value": 0.000866
         },
         "correlation_shift": {
           "available": true,
-          "value": -0.0489
+          "value": 0.0803
         },
         "order_flow_imbalance": {
           "available": true,
-          "value": 0.3056,
+          "value": -0.2297,
           "method": "tick_rule_bar_close"
         },
         "jump_indicator": {
           "available": true,
-          "relative_jump": 0.7803,
-          "z_stat": 4.491
+          "relative_jump": 0.001,
+          "z_stat": 0.0098
         },
         "novelty": {
           "available": false,
           "value": null
         }
       },
-      "directional_probability": 0.4985,
+      "directional_probability": 0.5,
       "calibrated": true,
       "abstain": true,
-      "uncertainty": 0.0878,
+      "uncertainty": 0.083,
       "as_of": "2026-07-10T11:29:00"
     },
     {
       "ticker": "SPY",
-      "chaos_index": 0.151,
+      "chaos_index": 0.0707,
       "state_label": "calm",
       "components": {
         "volatility_ratio": {
           "available": true,
-          "value": 0.5054
+          "value": 0.8545
         },
         "volume_surprise": {
           "available": true,
-          "value": -1.0651
+          "value": -1.8908
         },
         "range_spread_deterioration": {
           "available": true,
-          "value": 6.6406,
+          "value": 1.4348,
           "spread_bps": {
             "available": false,
             "value": null
@@ -186,49 +186,49 @@
         },
         "cross_sectional_dispersion": {
           "available": true,
-          "value": 0.000757
+          "value": 0.000866
         },
         "correlation_shift": {
           "available": true,
-          "value": -0.0489
+          "value": 0.0803
         },
         "order_flow_imbalance": {
           "available": true,
-          "value": -0.2674,
+          "value": 0.272,
           "method": "tick_rule_bar_close"
         },
         "jump_indicator": {
           "available": true,
-          "relative_jump": -0.1784,
-          "z_stat": -1.7709
+          "relative_jump": 0.0459,
+          "z_stat": 0.4279
         },
         "novelty": {
           "available": false,
           "value": null
         }
       },
-      "directional_probability": 0.5054,
+      "directional_probability": 0.5604,
       "calibrated": true,
-      "abstain": true,
-      "uncertainty": 0.0403,
+      "abstain": false,
+      "uncertainty": 0.0099,
       "as_of": "2026-07-10T11:29:00"
     },
     {
       "ticker": "QQQ",
-      "chaos_index": 0.1535,
+      "chaos_index": 0.1954,
       "state_label": "calm",
       "components": {
         "volatility_ratio": {
           "available": true,
-          "value": 0.7091
+          "value": 1.1028
         },
         "volume_surprise": {
           "available": true,
-          "value": 0.6276
+          "value": -0.598
         },
         "range_spread_deterioration": {
           "available": true,
-          "value": 4.2261,
+          "value": 9.5173,
           "spread_bps": {
             "available": false,
             "value": null
@@ -236,31 +236,31 @@
         },
         "cross_sectional_dispersion": {
           "available": true,
-          "value": 0.000757
+          "value": 0.000866
         },
         "correlation_shift": {
           "available": true,
-          "value": -0.0489
+          "value": 0.0803
         },
         "order_flow_imbalance": {
           "available": true,
-          "value": 0.6024,
+          "value": 0.2673,
           "method": "tick_rule_bar_close"
         },
         "jump_indicator": {
           "available": true,
-          "relative_jump": -0.0527,
-          "z_stat": -0.523
+          "relative_jump": -0.2146,
+          "z_stat": -2.1304
         },
         "novelty": {
           "available": false,
           "value": null
         }
       },
-      "directional_probability": 0.5184,
+      "directional_probability": 0.5665,
       "calibrated": true,
-      "abstain": true,
-      "uncertainty": 0.0315,
+      "abstain": false,
+      "uncertainty": 0.0416,
       "as_of": "2026-07-10T11:29:00"
     }
   ]
