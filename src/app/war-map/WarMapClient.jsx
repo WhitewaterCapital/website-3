@@ -645,15 +645,7 @@ export default function WarMapClient() {
               <div className="ww-panel-title">Latest News</div>
               <MiniFeed />
               <div className="ww-panel-title ww-spaced-lg">Live Stream — Bloomberg Originals</div>
-              <div className="ww-live-embed-wrap ww-live-embed-wrap-mini">
-                <iframe
-                  className="ww-live-embed"
-                  src="https://www.youtube.com/embed/live_stream?channel=UCUMZ7gohGI9HcU9VNsr2FJQ&autoplay=0"
-                  title="Bloomberg Originals live"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
+              <BloombergLive />
               <div className="ww-muted ww-mini-caption">Bloomberg's own free public livestream — not paywalled, not scraped.</div>
             </aside>
 
@@ -1091,6 +1083,60 @@ export default function WarMapClient() {
   }
 }
 
+const BLOOMBERG_CHANNEL_ID = 'UCUMZ7gohGI9HcU9VNsr2FJQ';
+
+// YouTube's channel-keyed `/embed/live_stream` endpoint will happily render
+// "An error occurred. Please try again later. (Playback ID: ...)" instead of
+// video when it can't validate the embedding page's origin (this is YouTube
+// player error 153 — see their IFrame API docs on the `origin` param) rather
+// than failing cleanly. Deployed sites are the case that actually hits this:
+// a localhost dev server has no such check, so this can look "fine" in dev
+// and break only once it's live on Vercel — which matches what was reported
+// here (works for nobody testing off a deploy URL until `origin` is set).
+// Computed client-side from window.location.origin since the real deployed
+// origin isn't known at build time (preview URLs, custom domains, etc.).
+function BloombergLive() {
+  const [origin, setOrigin] = useState(null);
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const src =
+    `https://www.youtube.com/embed/live_stream?channel=${BLOOMBERG_CHANNEL_ID}&autoplay=0` +
+    (origin ? `&origin=${encodeURIComponent(origin)}` : '');
+
+  return (
+    <div className="ww-live-embed-wrap ww-live-embed-wrap-mini">
+      {/* Don't render the iframe until `origin` is known — an embed request
+          missing/mismatching `origin` is exactly the failure mode this
+          works around, so a first paint without it would just reproduce
+          the bug for one render before self-correcting. */}
+      {origin && (
+        <iframe
+          className="ww-live-embed"
+          src={src}
+          title="Bloomberg Originals live"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      )}
+      {/* Always-available fallback: some networks/extensions block third-party
+          video iframes outright regardless of the origin fix above, and
+          there's no reliable way to detect a YouTube player-internal error
+          from the parent page — so give a working path out no matter what. */}
+      <a
+        className="ww-live-embed-fallback"
+        href={`https://www.youtube.com/channel/${BLOOMBERG_CHANNEL_ID}/live`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Watch live on YouTube ↗
+      </a>
+    </div>
+  );
+}
+
 function FeedCard({ item, compact }) {
   return (
     <a className={`ww-feed-item ww-threat-${item.threat} ${item.image && !compact ? 'ww-has-image' : ''}`} href={item.link} target="_blank" rel="noopener noreferrer">
@@ -1289,5 +1335,7 @@ const CSS = `
 .ww-live-embed-wrap { position: relative; width: 100%; max-width: 900px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; border: 1px solid var(--ww-border); background: #000; }
 .ww-live-embed-wrap-mini { max-width: none; }
 .ww-live-embed { width: 100%; height: 100%; border: 0; }
+.ww-live-embed-fallback { position: absolute; top: 6px; right: 8px; z-index: 1; font-size: 10.5px; color: #fff; background: rgba(0, 0, 0, 0.55); padding: 3px 7px; border-radius: 4px; text-decoration: none; }
+.ww-live-embed-fallback:hover { background: rgba(0, 0, 0, 0.8); }
 .ww-card-link { text-decoration: none; color: inherit; display: block; cursor: pointer; }
 `;
