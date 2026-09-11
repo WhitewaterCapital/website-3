@@ -1263,7 +1263,7 @@ const CSS = `
 .ww-refresh-btn { margin-left: auto; background: var(--ww-surface2); border: 1px solid var(--ww-border); color: var(--ww-accent); font-family: ui-monospace, monospace; font-size: 11px; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
 .ww-feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .ww-spaced-sm { margin-top: 10px; margin-bottom: 4px; }
-.ww-hero-card { display: block; position: relative; text-decoration: none; color: inherit; border: 1px solid var(--ww-border); border-radius: 6px; overflow: hidden; background: var(--ww-surface2); margin: 14px 0 18px; }
+.ww-hero-card { display: block; position: relative; text-decoration: none; color: inherit; border: 1px solid var(--ww-border); border-radius: 6px; overflow: hidden; background: var(--ww-surface2); margin: 14px 0 18px; flex-shrink: 0; }
 .ww-hero-image { display: block; width: 100%; height: 320px; object-fit: cover; background: var(--ww-surface2); }
 .ww-hero-badge { position: absolute; top: 14px; left: 14px; font-family: ui-monospace, monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 3px; text-transform: uppercase; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
 .ww-hero-badge.ww-threat-critical { color: var(--ww-critical); }
