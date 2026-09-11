@@ -18,7 +18,7 @@ Run:  python3 -m wf.export        (from weekly-engine/, with weekly-engine on PY
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -53,6 +53,24 @@ DEMO_N_WEEKS = 320
 DEMO_SEED = 13
 
 
+def _synthetic_calendar_start(n_weeks: int) -> str:
+    """The live export's synthetic panel used a fixed historical start date
+    (synthetic.DEFAULT_START, 2015-01-02), so however many weeks it ran for
+    landed wherever the arithmetic put it -- in practice this had drifted to
+    "as of 2021-02-12" with zero relationship to when the export actually
+    ran, which reads as stale data even though the run itself was fresh
+    (generated_at was always today). This anchors the synthetic calendar's
+    LAST week to the most recent Friday on/before today instead, so as_of
+    always looks current -- the panel is exactly as fake as before, just
+    dated sensibly. synthetic.py's own DEFAULT_START and its test fixtures
+    are untouched; this only changes what the live export passes in.
+    """
+    today = date.today()
+    last_friday = today - timedelta(days=(today.weekday() - 4) % 7)
+    first_friday = last_friday - timedelta(weeks=n_weeks - 1)
+    return first_friday.isoformat()
+
+
 def _synthetic_provenance() -> dict:
     return {
         "kind": "synthetic-demo",
@@ -71,7 +89,11 @@ def _synthetic_provenance() -> dict:
 
 def build_export() -> dict:
     weekly_prices = generate_synthetic_weekly_prices(
-        UNIVERSE, n_weeks=DEMO_N_WEEKS, seed=DEMO_SEED, signal_strength=DEMO_SIGNAL_STRENGTH
+        UNIVERSE,
+        n_weeks=DEMO_N_WEEKS,
+        seed=DEMO_SEED,
+        signal_strength=DEMO_SIGNAL_STRENGTH,
+        start=_synthetic_calendar_start(DEMO_N_WEEKS),
     )
     panel, feature_cols, manifest = build_feature_panel(weekly_prices, SECTOR_MAP)
     manifest_hash = feature_manifest_hash(manifest)

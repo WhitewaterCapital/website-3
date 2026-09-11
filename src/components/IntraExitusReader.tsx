@@ -32,7 +32,7 @@ export function IntraExitusReader({ data }: { data: IntraExitusExport }) {
             `as_of` is what the data is current to, `generated_at` is when this
             run computed it. */}
         <p className="mt-2 font-mono text-[11px] text-muted">
-          Intra/Exitus {data.schema_version} · engine {data.engine_version} · data
+          Entry &amp; Exit {data.schema_version} · engine {data.engine_version} · data
           as of {data.as_of} · computed {data.generated_at} ·{" "}
           {actionable.length}/{data.plans.length} with a setup
         </p>

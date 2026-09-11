@@ -101,8 +101,8 @@ export default async function WatchPage() {
       <ModuleNav crumb="Watch" />
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="flex items-baseline gap-3">
-          <p className="font-mono text-sm text-accent">// WW-WATCH</p>
-          <span className="font-mono text-xs text-muted">the position monitor</span>
+          <p className="font-mono text-sm text-accent">// Position Monitor</p>
+          <span className="font-mono text-xs text-muted">daily position check</span>
         </div>
         <h1 className="display mt-2 text-3xl sm:text-4xl">Don&apos;t just enter a trade. Watch it.</h1>
         <p className="mt-3 max-w-2xl text-muted">
@@ -237,7 +237,7 @@ function PositionCard({
           href={`/stress-test?ticker=${position.symbol}&instrument=long`}
           className="mt-2 inline-block text-xs text-accent hover:underline"
         >
-          Open in Strictus Testum (illustrative decision-ledger link — the ticker isn&apos;t actually prefilled yet) →
+          Open in Stress Test (illustrative decision-ledger link — the ticker isn&apos;t actually prefilled yet) →
         </Link>
       </div>
 
@@ -256,7 +256,7 @@ function PositionCard({
           </div>
           <div>
             <p>
-              <span className="text-foreground/50">Intra/Exitus:</span> {plan.bias} · stop{" "}
+              <span className="text-foreground/50">Entry &amp; Exit:</span> {plan.bias} · stop{" "}
               {Number.isNaN(plan.stop) ? "—" : usd(plan.stop, { cents: true })} · targets{" "}
               {plan.targets.length ? plan.targets.map((t) => usd(t, { cents: true })).join(", ") : "—"}
             </p>

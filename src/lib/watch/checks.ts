@@ -158,7 +158,7 @@ function invalidationTrafficLight(position: Position, plan: EntryExitPlan): Chec
       label,
       severity: "info",
       available: false,
-      reason: `Intra/Exitus abstained on ${position.symbol} (confidence: insufficient, bias: none) — no real stop/target levels were published to check price against, and no invalidation conditions came with the abstained read.`,
+      reason: `Entry & Exit abstained on ${position.symbol} (confidence: insufficient, bias: none) — no real stop/target levels were published to check price against, and no invalidation conditions came with the abstained read.`,
       detail: "No usable plan to check against — see reason.",
     };
   }
@@ -168,7 +168,7 @@ function invalidationTrafficLight(position: Position, plan: EntryExitPlan): Chec
       label,
       severity: "info",
       available: false,
-      reason: `${position.symbol} is outside Intra/Exitus's real covered universe, so the plan shown is the seeded demo fallback. Its stop/target levels are derived from a hash of the ticker string, not this position's real price — comparing ${position.symbol}'s real $${position.lastPriceUsd.toFixed(2)} to a synthetic level would produce a number, not a read. Skipped rather than faked.`,
+      reason: `${position.symbol} is outside Entry & Exit's real covered universe, so the plan shown is the seeded demo fallback. Its stop/target levels are derived from a hash of the ticker string, not this position's real price — comparing ${position.symbol}'s real $${position.lastPriceUsd.toFixed(2)} to a synthetic level would produce a number, not a read. Skipped rather than faked.`,
       detail: "No price-anchored plan to check against — see reason.",
     };
   }
@@ -197,7 +197,7 @@ function invalidationTrafficLight(position: Position, plan: EntryExitPlan): Chec
 
   const invalidationsText = plan.invalidations.length
     ? plan.invalidations.join(" ")
-    : "(Intra/Exitus published no free-text invalidation conditions with this plan.)";
+    : "(Entry & Exit published no free-text invalidation conditions with this plan.)";
 
   return {
     id,
@@ -260,7 +260,7 @@ function timeInTradeVsHorizon(position: Position, nowIso: string): CheckResult {
     severity,
     available: true,
     detail: pastHorizon
-      ? `${daysInTrade} days in trade vs. a ${horizonEntry.band} (~${horizonDays}d) registered horizon for Intra/Exitus (${horizonEntry.note}) — ${daysPast} days past. This fires purely on elapsed time, independent of price: a thesis that hasn't played out in its stated window is itself information, per WATCH-01.`
+      ? `${daysInTrade} days in trade vs. a ${horizonEntry.band} (~${horizonDays}d) registered horizon for Entry & Exit (${horizonEntry.note}) — ${daysPast} days past. This fires purely on elapsed time, independent of price: a thesis that hasn't played out in its stated window is itself information, per WATCH-01.`
       : `${daysInTrade} days in trade, within the ${horizonEntry.band} (~${horizonDays}d) registered horizon.`,
     data: { daysInTrade, horizonDays, horizonBand: horizonEntry.band, daysPast: Math.max(0, daysPast), pastHorizon },
   };

@@ -39,7 +39,7 @@ const STRATEGY_COLORS = [
 const SAMPLE_STRATEGIES = [
   "Equity L/S (Incepta)",
   "Macro overlay (Aurora)",
-  "Intra/Exitus tactical",
+  "Entry & Exit tactical",
   "Weekly rank (WW-WEEKLY)",
 ];
 

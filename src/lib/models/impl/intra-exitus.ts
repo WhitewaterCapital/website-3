@@ -34,7 +34,7 @@ import type { IntraExitusPlan } from "../intra-exitus-export";
 export const intraExitus: LevelsModel = {
   meta: {
     id: "intra-exitus",
-    name: "Intra / Exitus",
+    name: "Entry & Exit",
     kind: "levels",
     status: "live",
     tagline: "Entry zone and exits — stop, targets, sizing, and time-stops.",
@@ -75,7 +75,7 @@ function realPlan(idea: TradeIdea, real: IntraExitusPlan): EntryExitPlan {
     timeStop: real.timeStop,
     rationale: real.rationale,
     invalidations: real.invalidations,
-    generatedBy: "Intra / Exitus",
+    generatedBy: "Entry & Exit",
   };
 }
 
@@ -101,11 +101,11 @@ function abstainedPlan(idea: TradeIdea, real: IntraExitusPlan): EntryExitPlan {
         ? real.timeStop
         : "No time-stop — the engine abstained; there is no plan to time out of.",
     rationale:
-      `Intra / Exitus abstained on ${real.ticker} (confidence: ${real.confidence}): ${real.rationale} ` +
+      `Entry & Exit abstained on ${real.ticker} (confidence: ${real.confidence}): ${real.rationale} ` +
       `No entry, stop, or size are computed here — this is a "stand aside" read, not a plan, and the ` +
       `numeric fields above are not real levels.`,
     invalidations: real.invalidations,
-    generatedBy: "Intra / Exitus (insufficient — engine abstained)",
+    generatedBy: "Entry & Exit (insufficient — engine abstained)",
   };
 }
 
@@ -150,6 +150,6 @@ function demoPlan(idea: TradeIdea): EntryExitPlan {
       "A gap through the entry band on a catalyst — don't chase; re-plan.",
       "Volatility regime shift (VIX spike) — halve size or stand aside.",
     ],
-    generatedBy: "Intra / Exitus (sample)",
+    generatedBy: "Entry & Exit (sample)",
   };
 }

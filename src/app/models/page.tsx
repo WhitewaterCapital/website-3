@@ -79,7 +79,7 @@ export default function ModelRegistryPage() {
               ) : null}
               {(m.id === "distresse" || m.id === "intra-exitus") && (
                 <Link href="/stress-test" className="mt-4 inline-block text-xs font-medium text-accent hover:underline">
-                  Open in Strictus Testum →
+                  Open in Stress Test →
                 </Link>
               )}
               {m.id === "macro-tracker" && (

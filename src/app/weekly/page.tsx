@@ -26,8 +26,8 @@ export default async function WeeklyPage() {
       <ModuleNav crumb="Weekly" />
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="flex items-baseline gap-3">
-          <p className="font-mono text-sm text-accent">// WW-Weekly</p>
-          <span className="font-mono text-xs text-muted">the weekly rank</span>
+          <p className="font-mono text-sm text-accent">// Weekly Ranking</p>
+          <span className="font-mono text-xs text-muted">cross-sectional rank</span>
         </div>
         <h1 className="display mt-2 text-3xl sm:text-4xl">
           This week&apos;s cross-sectional read.

@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-04T14:08:28.696872+00:00",
-  "as_of": "2021-02-12",
+  "generated_at": "2026-09-04T17:25:56.750588+00:00",
+  "as_of": "2026-09-04",
   "universe": [
     "AAPL",
     "MSFT",
@@ -226,7 +226,7 @@
       "quantile_p90": 0.031113,
       "decile": 1,
       "model_version": "ridge-1.0",
-      "feature_manifest_hash": "a9e4fecf2c2d2321",
+      "feature_manifest_hash":"a9e4fecf2c2d2321",
       "confidence": "research-grade",
       "rank_ic_oos": 0.0229,
       "provisional": true
@@ -243,17 +243,17 @@
   "validation": {
     "n_folds": 4,
     "ridge_mean_rank_ic": 0.0229,
-    "gbm_mean_rank_ic": -0.0023,
+    "gbm_mean_rank_ic": 0.0058,
     "ridge_mean_hit_rate": 0.5104,
-    "gbm_mean_hit_rate": 0.496,
+    "gbm_mean_hit_rate": 0.5011,
     "ridge_mean_decile_spread": -0.002,
-    "gbm_mean_decile_spread": 0.0003,
+    "gbm_mean_decile_spread": -0.0016,
     "ridge_turnover": 0.2565,
-    "gbm_turnover": 0.2471,
+    "gbm_turnover": 0.2433,
     "ridge_deflated_sharpe": 0.6615,
-    "gbm_deflated_sharpe": 0.3747,
+    "gbm_deflated_sharpe": 0.1595,
     "gbm_beats_baseline": false,
-    "gbm_beats_baseline_reason": "GBM mean rank IC (-0.0023) is below the materiality floor (0.02) \u2014 not distinguishable from noise even if nominally positive",
+    "gbm_beats_baseline_reason": "GBM mean rank IC (0.0058) is below the materiality floor (0.02) \u2014 not distinguishable from noise even if nominally positive",
     "model_version_published": "ridge-1.0"
   }
 }

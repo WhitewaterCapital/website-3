@@ -100,7 +100,7 @@ export function StressTestClient() {
             disabled={loading}
             className="bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
           >
-            {loading ? "Running…" : "Run Distresse + Intra / Exitus"}
+            {loading ? "Running…" : "Run Stress Test"}
           </button>
         </form>
       </Card>
@@ -177,31 +177,47 @@ function DistressePanel({ v }: { v: StressVerdict }) {
 }
 
 function IntraPanel({ p }: { p: EntryExitPlan }) {
+  // The engine abstains by publishing literal NaN in the numeric fields
+  // (see impl/intra-exitus.ts) rather than a fabricated band. Showing raw
+  // "NaN – NaN" to a member is its own bug on top of the abstain, so catch
+  // it here and render the honest rationale instead of broken numbers.
+  const abstained = Number.isNaN(p.stop);
+
   return (
     <Card
-      title="Intra / Exitus — entry & exit"
-      action={<Badge tone={p.bias === "long" ? "up" : "down"}>{p.bias.toUpperCase()}</Badge>}
+      title="Entry & Exit"
+      action={
+        !abstained && (
+          <Badge tone={p.bias === "long" ? "up" : "down"}>{p.bias.toUpperCase()}</Badge>
+        )
+      }
     >
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Entry zone" value={`${p.entryZone[0]} – ${p.entryZone[1]}`} />
-        <Field label="Stop" value={String(p.stop)} tone="down" />
-        <Field label="Targets" value={p.targets.join("  ·  ")} tone="up" />
-        <Field label="Size" value={`${p.sizingPct}% of book`} />
-      </div>
-
-      <Section title="Time stop">
-        <p className="text-sm text-foreground/80">{p.timeStop}</p>
-      </Section>
-      <Section title="Rationale">
+      {abstained ? (
         <p className="text-sm text-foreground/80">{p.rationale}</p>
-      </Section>
-      <Section title="Invalidations">
-        <ul className="space-y-1.5">
-          {p.invalidations.map((inv, i) => (
-            <li key={i} className="text-sm text-foreground/80">— {inv}</li>
-          ))}
-        </ul>
-      </Section>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Entry zone" value={`${p.entryZone[0]} – ${p.entryZone[1]}`} />
+            <Field label="Stop" value={String(p.stop)} tone="down" />
+            <Field label="Targets" value={p.targets.join("  ·  ")} tone="up" />
+            <Field label="Size" value={`${p.sizingPct}% of book`} />
+          </div>
+
+          <Section title="Time stop">
+            <p className="text-sm text-foreground/80">{p.timeStop}</p>
+          </Section>
+          <Section title="Rationale">
+            <p className="text-sm text-foreground/80">{p.rationale}</p>
+          </Section>
+          <Section title="Invalidations">
+            <ul className="space-y-1.5">
+              {p.invalidations.map((inv, i) => (
+                <li key={i} className="text-sm text-foreground/80">— {inv}</li>
+              ))}
+            </ul>
+          </Section>
+        </>
+      )}
       <p className="mt-4 text-[11px] text-muted">{p.generatedBy}</p>
     </Card>
   );
