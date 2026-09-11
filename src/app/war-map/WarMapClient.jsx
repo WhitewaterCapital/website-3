@@ -10,6 +10,7 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import * as topojson from 'topojson-client';
 import worldTopology from 'world-atlas/countries-110m.json';
+import { resolveIso3 } from '../../lib/whitewatch-data/country-codes';
 
 // ---------------------------------------------------------------------
 // Data + color helpers
@@ -199,31 +200,86 @@ export default function WarMapClient() {
     if (map) map.flyTo({ center: [conflict.lng, conflict.lat], zoom: 3.5, duration: 900 });
   }, []);
 
+  // Every country's click panel — conflict zone or not — gets this same
+  // real-data enrichment: World Bank/IMF econ indicators, UNHCR
+  // displacement, and recent GDELT headlines, fetched from
+  // /api/whitewatch/country-data for whichever ISO3 the clicked polygon's
+  // name resolves to (see lib/whitewatch-data/country-codes.js — this is
+  // the fix for "clicking a non-conflict country just says stable, no
+  // data": every polygon now gets a real per-country data pull, not just
+  // the ~20 curated conflict write-ups). Guarded by clickedCountryName so
+  // a fast second click doesn't let a slower first fetch clobber it.
+  const loadCountryData = useCallback((name) => {
+    const iso3 = resolveIso3(name);
+    if (!iso3) {
+      setSelectedItem((prev) =>
+        prev && prev.kind === 'zone' && prev.clickedCountryName === name
+          ? {
+              ...prev,
+              countryDataLoading: false,
+              countryData: {
+                resolved: false,
+                message: `No ISO3 country-code mapping found for "${name}" — economic/displacement/news data is unavailable for this polygon.`,
+              },
+            }
+          : prev
+      );
+      return;
+    }
+    fetch(`/api/whitewatch/country-data?iso3=${encodeURIComponent(iso3)}&name=${encodeURIComponent(name)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setSelectedItem((prev) =>
+          prev && prev.kind === 'zone' && prev.clickedCountryName === name ? { ...prev, countryDataLoading: false, countryData: data } : prev
+        );
+      })
+      .catch((err) => {
+        console.error('Whitewatch: country-data load failed', err);
+        setSelectedItem((prev) =>
+          prev && prev.kind === 'zone' && prev.clickedCountryName === name
+            ? { ...prev, countryDataLoading: false, countryData: { resolved: true, error: true } }
+            : prev
+        );
+      });
+  }, []);
+
   const openCountry = useCallback(
     (name) => {
       const zoneId = COUNTRY_TO_ZONE[name];
+      let openedZone = false;
       if (zoneId) {
         const zone = conflicts.find((c) => c.id === zoneId);
         if (zone) {
           openZone(zone);
-          return;
+          openedZone = true;
         }
       }
-      const tier = countryThreat[name] || 'stable';
-      setSelectedItem({
-        kind: 'zone',
-        name,
-        region: 'Country-level assessment',
-        status: tier === 'stable' ? 'No active conflict tracked' : 'Elevated',
-        summary:
-          tier === 'stable'
-            ? `${name} has no active armed conflict in this dataset — every country carries a tier, and most default to stable.`
-            : `${name} is flagged ${tier} for active conflict involvement. No dedicated write-up is curated for it yet.`,
-        actors: [],
-        threat: tier,
-      });
+      if (openedZone) {
+        // openZone() already set a fresh selectedItem above — layer the
+        // country-data loading state on top of it rather than replacing it,
+        // so the curated conflict write-up stays intact.
+        setSelectedItem((prev) => (prev ? { ...prev, clickedCountryName: name, countryData: null, countryDataLoading: true } : prev));
+      } else {
+        const tier = countryThreat[name] || 'stable';
+        setSelectedItem({
+          kind: 'zone',
+          name,
+          region: 'Country-level assessment',
+          status: tier === 'stable' ? 'No active conflict tracked' : 'Elevated',
+          summary:
+            tier === 'stable'
+              ? `${name} has no active armed conflict in this dataset — every country carries a tier, and most default to stable. See economic, displacement and news data below.`
+              : `${name} is flagged ${tier} for active conflict involvement. No dedicated write-up is curated for it yet — see economic, displacement and news data below.`,
+          actors: [],
+          threat: tier,
+          clickedCountryName: name,
+          countryData: null,
+          countryDataLoading: true,
+        });
+      }
+      loadCountryData(name);
     },
-    [conflicts, countryThreat, openZone]
+    [conflicts, countryThreat, openZone, loadCountryData]
   );
 
   // ---------------- Open an infrastructure asset panel ----------------
@@ -725,6 +781,7 @@ export default function WarMapClient() {
                       {selectedItem.actors.map((a) => <span key={a}>{a}</span>)}
                     </div>
                   )}
+                  {selectedItem.clickedCountryName && <CountryDataSection item={selectedItem} />}
                 </div>
               )}
 
@@ -1157,6 +1214,69 @@ function FeedCard({ item, compact }) {
   );
 }
 
+// Real per-country data (World Bank/IMF econ + UNHCR displacement + GDELT
+// headlines) shown on EVERY country's click panel, conflict zone or not —
+// see openCountry/loadCountryData and /api/whitewatch/country-data. Every
+// sub-section says plainly when a source has nothing for this country
+// instead of hiding itself or making up a number.
+function CountryDataSection({ item }) {
+  const cd = item.countryData;
+  const fmtNum = (n) => (n != null ? n.toLocaleString() : null);
+  const fmtPct = (n) => (n != null ? `${n.toFixed(1)}%` : null);
+
+  return (
+    <div className="ww-country-data">
+      <div className="ww-panel-title ww-spaced">Country Data — {item.clickedCountryName}</div>
+
+      {item.countryDataLoading && <div className="ww-muted">Loading economic, displacement & news data…</div>}
+
+      {!item.countryDataLoading && cd?.resolved === false && <div className="ww-muted">{cd.message}</div>}
+
+      {!item.countryDataLoading && cd?.error && <div className="ww-muted">Country data lookup failed — try reopening this country.</div>}
+
+      {!item.countryDataLoading && cd && cd.resolved !== false && !cd.error && (
+        <>
+          <div className="ww-asset-fields">
+            <div className="ww-asset-field"><span>GDP</span><b>{cd.econ?.gdpUsd != null ? `$${(cd.econ.gdpUsd / 1e9).toFixed(1)}B` : '—'}</b></div>
+            <div className="ww-asset-field"><span>GDP GROWTH</span><b>{fmtPct(cd.econ?.gdpGrowthPct) || '—'}</b></div>
+            <div className="ww-asset-field"><span>INFLATION</span><b>{fmtPct(cd.econ?.inflationPct) || '—'}</b></div>
+            <div className="ww-asset-field"><span>ELECTRICITY ACCESS</span><b>{fmtPct(cd.econ?.electricAccessPct) || '—'}</b></div>
+            <div className="ww-asset-field"><span>ENERGY USE/CAPITA</span><b>{cd.econ?.energyUsePerCapitaKgOilEq != null ? `${Math.round(cd.econ.energyUsePerCapitaKgOilEq)} kg oil eq.` : '—'}</b></div>
+            <div className="ww-asset-field"><span>FRESHWATER WITHDRAWAL</span><b>{cd.econ?.freshwaterWithdrawalBillionM3 != null ? `${cd.econ.freshwaterWithdrawalBillionM3.toFixed(1)} bn m³/yr` : '—'}</b></div>
+          </div>
+          {cd.econ && !cd.econ.available && <p className="ww-muted">{cd.econ.note}</p>}
+
+          <div className="ww-panel-title ww-spaced">Displacement</div>
+          {cd.displacement?.available ? (
+            <div className="ww-asset-fields">
+              <div className="ww-asset-field"><span>REFUGEES (ORIGIN)</span><b>{fmtNum(cd.displacement.refugeesOrigin) || '—'}</b></div>
+              <div className="ww-asset-field"><span>IDPs</span><b>{fmtNum(cd.displacement.idps) || '—'}</b></div>
+            </div>
+          ) : (
+            <p className="ww-muted">{cd.displacement?.note || 'No UNHCR displacement data available for this country.'}</p>
+          )}
+
+          <div className="ww-panel-title ww-spaced">Recent Headlines</div>
+          {cd.news?.available ? (
+            <div className="ww-country-news-list">
+              {cd.news.items.map((n) => (
+                <a key={n.link} className="ww-country-news-item" href={n.link} target="_blank" rel="noopener noreferrer">
+                  <div className="ww-country-news-title">{n.title}</div>
+                  <div className="ww-muted-inline">{n.source}{n.publishedAt ? ` · ${timeAgo(n.publishedAt)}` : ''}</div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="ww-muted">{cd.news?.note || 'No recent headlines found for this country.'}</p>
+          )}
+
+          {cd.source && <p className="ww-zone-summary ww-asset-source">Source: {cd.source}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DashCard({ title, value, status, on }) {
   return (
     <div className="ww-dash-card">
@@ -1210,7 +1330,7 @@ const CSS = `
 @keyframes ww-spin { to { transform: rotate(360deg); } }
 .ww-panel { position: absolute; background: rgba(12,17,22,0.92); border: 1px solid var(--ww-border); border-radius: 8px; padding: 14px; backdrop-filter: blur(6px); z-index: 10; }
 .ww-panel-layers { top: 14px; left: 14px; width: 210px; }
-.ww-panel-intel { top: 14px; right: 14px; width: 300px; }
+.ww-panel-intel { top: 14px; right: 14px; width: 300px; max-height: calc(100% - 28px); overflow-y: auto; }
 .ww-panel-title { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 1.5px; color: var(--ww-text-mute); text-transform: uppercase; margin-bottom: 8px; }
 .ww-spaced { margin-top: 14px; }
 .ww-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1240,6 +1360,11 @@ const CSS = `
 .ww-asset-field span { font-family: ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.6px; color: var(--ww-text-mute); }
 .ww-asset-field b { color: var(--ww-text); font-weight: 600; }
 .ww-asset-source { font-size: 10.5px; color: var(--ww-text-mute); margin-top: 10px; }
+.ww-country-data { margin-top: 4px; border-top: 1px dashed var(--ww-border); padding-top: 10px; }
+.ww-country-news-list { display: flex; flex-direction: column; gap: 8px; }
+.ww-country-news-item { display: block; text-decoration: none; color: inherit; border: 1px solid var(--ww-border); border-radius: 5px; padding: 7px 9px; background: var(--ww-surface2); }
+.ww-country-news-item:hover { border-color: var(--ww-accent); }
+.ww-country-news-title { font-size: 12px; line-height: 1.4; color: var(--ww-text); margin-bottom: 3px; }
 .ww-side-feed { width: 320px; flex-shrink: 0; overflow-y: auto; background: var(--ww-surface); border-right: 1px solid var(--ww-border); padding: 14px; }
 .ww-feed-list { display: flex; flex-direction: column; gap: 10px; }
 .ww-feed-item { border: 1px solid var(--ww-border); border-left: 3px solid var(--ww-text-mute); border-radius: 4px; padding: 10px; background: var(--ww-surface2); text-decoration: none; color: inherit; display: block; }
