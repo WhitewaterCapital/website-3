@@ -123,6 +123,23 @@ export function DislocationField({ data }: { data: GraphExport | null }) {
     (r) => r.confidence === "insufficient" || r.residual_z == null,
   );
 
+  // Legend text, keyed by color/shape slot (`idx`) rather than the raw
+  // sector name: `idx` is `sector number % SECTOR_COLORS.length`, so once a
+  // universe has more than 6 sectors, two different real sectors can share
+  // one color+shape slot (an intentional palette limitation, not a bug), and
+  // a ticker that doesn't match the `S{n}N{n}` convention at all falls into
+  // its own "Unknown sector" slot rather than a numbered one. Building the
+  // legend from `idx` alone (e.g. a bare "Sector {idx}") would print the
+  // wrong name for both of those cases — the label wouldn't match the
+  // sector name shown in that same point's hover tooltip. Collecting every
+  // distinct real name that lands in each slot keeps the legend honest.
+  const sectorNamesByIdx: Record<number, string[]> = {};
+  placeable.forEach((r) => {
+    const { name, idx } = sectorOf(r.ticker);
+    const names = (sectorNamesByIdx[idx] ??= []);
+    if (!names.includes(name)) names.push(name);
+  });
+
   const width = 760;
   const height = 460;
   const padL = 56;
@@ -254,14 +271,15 @@ export function DislocationField({ data }: { data: GraphExport | null }) {
 
       {/* Sector legend — color AND shape AND text, never color alone */}
       <div className="flex flex-wrap gap-4 text-xs text-foreground/60">
-        {Array.from(new Set(placeable.map((r) => sectorOf(r.ticker).idx)))
+        {Object.keys(sectorNamesByIdx)
+          .map(Number)
           .sort((a, b) => a - b)
           .map((idx) => (
             <span key={idx} className="inline-flex items-center gap-1.5">
               <svg width="14" height="14" aria-hidden="true">
                 <Marker shape={idx} color={SECTOR_COLORS[idx] ?? "var(--viz-grey)"} x={7} y={7} r={5} />
               </svg>
-              Sector {idx}
+              {sectorNamesByIdx[idx].slice().sort().join(", ")}
             </span>
           ))}
       </div>

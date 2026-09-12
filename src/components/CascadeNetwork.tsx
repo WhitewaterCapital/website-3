@@ -126,7 +126,14 @@ export function CascadeNetwork({
   funds.forEach((f, i) => (pos[f] = { x: hubX(i), y: hubY, hub: true }));
   constituents.forEach((c, i) => (pos[c] = { x: leafX(i), y: leafY, hub: false }));
 
-  const maxWeight = Math.max(...holdings.map((h) => h.weight));
+  // Floor, not `Math.max(1, ...)` — weights are fractions of 1, so a floor of
+  // 1 would force maxWeight to 1 whenever every real weight is < 1 (the
+  // normal case), flattening every edge to the same thin width. A tiny
+  // epsilon only guards the true degenerate case (every holding weight
+  // exactly 0), which would otherwise divide 0/0 into NaN below and drop the
+  // stroke-width attribute (an invisible, broken-looking edge) instead of a
+  // sane default.
+  const maxWeight = Math.max(...holdings.map((h) => h.weight), 0.0001);
   const pressureOf = (id: string) => Math.max(0, Math.min(1, step.pressureByNode[id] ?? 0));
 
   const topPressure = Object.entries(step.pressureByNode)
