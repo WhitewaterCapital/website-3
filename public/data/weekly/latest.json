@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-04T17:25:56.750588+00:00",
-  "as_of": "2026-09-04",
+  "generated_at": "2026-09-12T21:55:43.627610+00:00",
+  "as_of": "2026-09-11",
   "universe": [
     "AAPL",
     "MSFT",
@@ -226,7 +226,7 @@
       "quantile_p90": 0.031113,
       "decile": 1,
       "model_version": "ridge-1.0",
-      "feature_manifest_hash":"a9e4fecf2c2d2321",
+      "feature_manifest_hash": "a9e4fecf2c2d2321",
       "confidence": "research-grade",
       "rank_ic_oos": 0.0229,
       "provisional": true
