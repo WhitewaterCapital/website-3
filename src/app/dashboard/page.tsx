@@ -4,6 +4,7 @@ import { LineChart } from "@/components/LineChart";
 import { ExposureGauge } from "@/components/ExposureGauge";
 import { AllocatorPanel } from "@/components/AllocatorPanel";
 import { DisagreementPanel } from "@/components/DisagreementPanel";
+import { TickerHubClient } from "@/components/TickerHubClient";
 import { Stat, Card } from "@/components/ui";
 import { getBroker } from "@/lib/broker";
 import { getAllocExport } from "@/lib/alloc";
@@ -15,12 +16,6 @@ import { usd, pct, shortDate, num } from "@/lib/format";
 // THE DESK — the members launcher. Four modules up top (each a shell you fill
 // with its own algo backend), portfolio/holdings below.
 const MODULES = [
-  {
-    href: "/hub",
-    name: "Ticker Hub",
-    latin: "search any name, get everything",
-    blurb: "Type a commodity, equity, or FX ticker — every model's read on it, in one place, with comparison.",
-  },
   {
     href: "/sentiment",
     name: "Sentiment",
@@ -79,29 +74,44 @@ export default async function DeskPage() {
       <main className="mx-auto max-w-5xl px-6 py-10">
         <p className="rise rise-1 font-mono text-sm text-accent">// The Desk</p>
         <h1 className="rise rise-2 display mt-2 text-4xl sm:text-5xl">
-          Good to see you.
+          Search any ticker. Get everything.
         </h1>
+        <p className="rise rise-2 mt-3 max-w-2xl text-sm text-foreground/80 sm:text-base">
+          Type a commodity, equity, or FX ticker below and this runs every model that applies to it —
+          Distresse&apos;s stress test, Entry &amp; Exit levels, WW-Weekly&apos;s cross-sectional rank, and Incepta&apos;s
+          equity fundamentals — laid out as one breakdown, with an optional second ticker to compare.
+        </p>
 
-        {/* Module launcher */}
-        <div className="mt-8 flex flex-wrap justify-end gap-x-6 gap-y-1">
-          <Link
-            href="/performance"
-            className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
-          >
-            Performance attribution →
-          </Link>
-          <Link
-            href="/visuals"
-            className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
-          >
-            Visuals →
-          </Link>
-          <Link
-            href="/models"
-            className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
-          >
-            Model registry →
-          </Link>
+        {/* Ticker Hub — the front door. Same component as the standalone /hub
+            page, embedded directly on the home page so search-and-get-everything
+            is the first thing anyone can do here, not one more card to click into. */}
+        <div className="rise rise-3 mt-8">
+          <TickerHubClient />
+        </div>
+
+        {/* Module launcher — jump straight to an individual model's own page */}
+        <div className="mt-14 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <h2 className="eyebrow">Or open a model directly</h2>
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <Link
+              href="/performance"
+              className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
+            >
+              Performance attribution →
+            </Link>
+            <Link
+              href="/visuals"
+              className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
+            >
+              Visuals →
+            </Link>
+            <Link
+              href="/models"
+              className="text-xs uppercase tracking-[0.12em] text-muted hover:text-foreground"
+            >
+              Model registry →
+            </Link>
+          </div>
         </div>
         <div className="mt-3 grid gap-px border border-hairline bg-hairline sm:grid-cols-2">
           {MODULES.map((mod, i) => (
