@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Card } from "@/components/ui";
 import { DislocationField } from "@/components/DislocationField";
 import { ChaosRibbon, type ChaosPoint } from "@/components/ChaosRibbon";
-import { CascadeNetwork } from "@/components/CascadeNetwork";
-import { AllocatorRibbon } from "@/components/AllocatorRibbon";
 import type { GraphExport } from "@/lib/models/graph-export";
 import type { ChaosExport } from "@/lib/models/chaos-export";
 
@@ -16,6 +14,19 @@ import type { ChaosExport } from "@/lib/models/chaos-export";
 // replay step: the scrubber drives an INDEX into a stored array of sample
 // snapshots, not a real-time clock, and nothing here streams from a
 // websocket/SSE backend (none exists in this repo).
+//
+// REMOVED 2026-09-13 (see PLATFORM_REBUILD_PLAN.md, priority #7): Cascade
+// Network and Allocator Ribbon used to render below the Chaos ribbon. Both
+// were 100% fabricated fixtures with no real seam behind them at all (no
+// ETF-holdings ingestion, no live WW-ALLOC run/export) — pulled off this
+// page rather than left showing fake numbers next to Distresse's newly-real
+// dimensions. Their component files (CascadeNetwork.tsx, AllocatorRibbon.tsx)
+// are now unused/orphaned — left in place rather than deleted (this session
+// hit a hard deletion-permission denial; see the plan's Roadblocks). Real
+// rebuilds of both are tracked separately in the plan, not half-built here.
+// Note: AllocatorPanel.tsx on /dashboard is a DIFFERENT, unrelated component
+// with a real seam (getAllocExport()) already wired for a real export to
+// drop into — it was not touched and stays.
 //
 // ---------------------------------------------------------------------------
 // CHAOS-01 sample fixture — the FALLBACK, used only when `chaos` (read
@@ -55,16 +66,12 @@ const SAMPLE_PRICE = SAMPLE_CHAOS_POINTS.map((p, i) => {
 export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; chaos: ChaosExport | null }) {
   const [step, setStep] = useState(0);
   const maxStep = SAMPLE_CHAOS_POINTS.length - 1;
-  const cascadeSteps = 16;
-  const cascadeStep = Math.round((step / maxStep) * (cascadeSteps - 1));
 
   // getChaosExport() is a per-ticker SNAPSHOT (one `as_of`), not a stored
   // time series — there is no chaos history to scrub through yet. When a
   // real export is present, use its first reading with a usable (non-null)
-  // chaos_index as a single real ChaosPoint; the replay scrubber above still
-  // drives the Cascade network, but has nothing to scrub on the ribbon
-  // itself in that case (n=1). Fall back to the SAMPLE fixture, clearly
-  // labeled, only when no real reading is usable.
+  // chaos_index as a single real ChaosPoint. Fall back to the SAMPLE
+  // fixture, clearly labeled, only when no real reading is usable.
   const primaryReading = chaos?.readings.find((r) => r.chaos_index != null) ?? null;
   const chaosIsReal = primaryReading != null;
   const chaosPoints = primaryReading
@@ -73,13 +80,17 @@ export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; cha
 
   return (
     <div className="space-y-10">
-      {/* Shared replay scrubber */}
+      {/* Shared replay scrubber — now only drives the Chaos ribbon's sample
+         fallback below; real chaos/dislocation reads are single snapshots
+         until the history-log infra (plan priority #4) exists to scrub
+         through actual stored history instead of a synthetic one. */}
       <Card title="Replay">
         <p className="text-xs text-muted">
-          Steps through a stored array of sample snapshots — not a live clock.
-          Drives the Chaos ribbon and the Cascade network below; the
-          Dislocation field and Allocator ribbon are static snapshots (noted
-          on each panel).
+          Steps through a stored array of sample snapshots — not a live
+          clock, and only active while the Chaos ribbon below has no real
+          reading to show instead. The Dislocation field is a static, real
+          snapshot regardless of this control (noted on the panel) until a
+          real history log exists to scrub through.
         </p>
         <div className="mt-4 flex items-center gap-4">
           <input
@@ -117,14 +128,6 @@ export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; cha
         ) : (
           <ChaosRibbon points={SAMPLE_CHAOS_POINTS} priceSeries={SAMPLE_PRICE} currentIndex={step} sample />
         )}
-      </Card>
-
-      <Card title="Cascade network — WW-CASCADE pressure propagation">
-        <CascadeNetwork currentStep={cascadeStep} />
-      </Card>
-
-      <Card title="Allocator ribbon — WW-ALLOC budgets">
-        <AllocatorRibbon />
       </Card>
     </div>
   );

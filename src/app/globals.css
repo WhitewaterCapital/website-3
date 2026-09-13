@@ -35,13 +35,14 @@
 /* VIS-01 visual layer — validated chart palette (see the dataviz skill's  */
 /* palette.md; ordering is a CVD-safety mechanism, never cycle or reorder */
 /* per-chart). Six fixed categorical slots (sector identity in            */
-/* DislocationField/CascadeNetwork) + a fixed four-step status ramp       */
+/* DislocationField) + a fixed four-step status ramp                     */
 /* (calm -> cascade) mirroring chaos-engine/chaos/state.py's STATE_LEVELS.*/
 /* Every use of these pairs a swatch with a text label — never color      */
 /* alone. Validated with scripts/validate_palette.js (adjacent-pair gate; */
 /* six categorical series exceed the all-pairs-safe cap of three, so      */
-/* DislocationField/CascadeNetwork add a distinct marker shape per sector */
-/* as a secondary channel). */
+/* DislocationField adds a distinct marker shape per sector as a          */
+/* secondary channel). (CascadeNetwork used to share this palette too —   */
+/* removed from /visuals 2026-09-13, see PLATFORM_REBUILD_PLAN.md.) */
 :root {
   --viz-cat-1: #2a78d6; /* blue */
   --viz-cat-2: #eb6834; /* orange */

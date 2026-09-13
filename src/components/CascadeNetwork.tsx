@@ -1,3 +1,9 @@
+// ORPHANED 2026-09-13 — no longer imported/rendered anywhere (removed from
+// /visuals, see VisualsClient.tsx and PLATFORM_REBUILD_PLAN.md priority #7).
+// Left in the repo only because this session hit a hard deletion-permission
+// denial trying to remove it (see the plan's Roadblocks) — safe to delete
+// this file yourself, or ask again once you're ready to approve that.
+//
 // CASCADE NETWORK — VIS-01. Fund products as hubs, their constituents as
 // leaves, edge width = holding weight. A replay scrubber steps through a
 // sample "session" of a flow shock at one hub propagating pressure outward —

@@ -3,12 +3,19 @@ import { VisualsClient } from "@/components/VisualsClient";
 import { getGraphExport } from "@/lib/graph";
 import { getChaosExport } from "@/lib/chaos";
 
-// VISUAL LAYER — VIS-01. Four static + replay views: a dislocation field
-// (real WW-GRAPH residuals), a chaos state ribbon, a cascade-pressure
-// network, and an allocator budget ribbon. Static first, then a replay
-// scrubber over stored snapshots — per the planning doc's own build order,
-// this does NOT connect to a live stream (no websocket/SSE backend exists
-// in this repo yet).
+// VISUAL LAYER — VIS-01. Two static + replay views: a dislocation field
+// (real WW-GRAPH residuals) and a chaos state ribbon. Static first, then a
+// replay scrubber over stored snapshots — per the planning doc's own build
+// order, this does NOT connect to a live stream (no websocket/SSE backend
+// exists in this repo yet).
+//
+// Used to be four panels. The other two — a cascade-pressure network and an
+// allocator budget ribbon — were 100% fabricated fixtures with no real seam
+// behind them at all, and were removed 2026-09-13 rather than left showing
+// fake numbers next to the two panels above that at least have real (if
+// currently synthetic-demo / single-snapshot) data behind them. See
+// PLATFORM_REBUILD_PLAN.md priority #7 for the full reasoning and what a
+// real rebuild of either would need.
 //
 // Chaos ribbon data source: getChaosExport() (src/lib/chaos.ts) is read here,
 // server-side, and passed down through VisualsClient into ChaosRibbon. That
@@ -33,13 +40,13 @@ export default async function VisualsPage() {
           <p className="font-mono text-sm text-accent">// Visuals</p>
           <span className="font-mono text-xs text-muted">static + replay</span>
         </div>
-        <h1 className="display mt-2 text-3xl sm:text-4xl">Four ways to see the market moving.</h1>
+        <h1 className="display mt-2 text-3xl sm:text-4xl">Two ways to see the market moving.</h1>
         <p className="mt-3 max-w-2xl text-muted">
-          Two panels read real export seams — WW-GRAPH&apos;s residual
-          dislocations, and WW-CHAOS&apos;s state read (itself synthetic-demo
-          data per its own export, not a live market feed) — and two are
-          sample fixtures standing in for engines that don&apos;t have an
-          export seam yet. Each panel says which is which.
+          Both panels read real export seams — WW-GRAPH&apos;s residual
+          dislocations, and WW-CHAOS&apos;s state read — though both are
+          currently synthetic-demo data per their own exports, not a live
+          market feed, and each is a single snapshot rather than a real
+          history to scrub through yet. Each panel says exactly what it is.
         </p>
 
         <div className="mt-8">
