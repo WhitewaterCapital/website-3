@@ -2,6 +2,7 @@ import type { MacroModel, MacroReading, SectorRead, Catalyst } from "../types";
 import { seeded, pick } from "../shared";
 import { getMacroExport } from "@/lib/aurora";
 import type { MacroExport, RegimeRead } from "../aurora-export";
+import { fetchFredLatest, fetchFredSeries } from "@/lib/fred";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Macro Tracker — a MacroModel.
@@ -14,8 +15,12 @@ import type { MacroExport, RegimeRead } from "../aurora-export";
 // genuinely doesn't provide (or hasn't synced yet), never silently.
 //
 //   regime     ← export.regime.label                      (real, when present)
+//               else FRED yield-curve + jobless-claims read (real, when present — see below)
+//               else demo
 //   sentiment  ← nowcast skillful factors, else regime     (real, when present)
-//               scenario-affinity skew, else demo
+//               scenario-affinity skew,
+//               else FRED yield-curve + jobless-claims read (real, when present)
+//               else demo
 //   sectors    ← tilt.sectors, else tilt.factors,          (real, when present)
 //               else demo
 //   catalysts  ← ALWAYS the demo calendar — Aurora has no discrete event
@@ -25,9 +30,23 @@ import type { MacroExport, RegimeRead } from "../aurora-export";
 //   summary    ← nowcast.summary / book_read / regime,     (real, when present)
 //               else the old demo narrative
 //
+// [Added 2026-09-13, PLATFORM_REBUILD_PLAN.md priority #5] Regime/sentiment
+// now have a THIRD, genuinely real tier between "Aurora" and "demo RNG":
+// `fredRegimeFallback()` below reads the 10Y-2Y Treasury spread (T10Y2Y) and
+// initial jobless claims (ICSA) directly from FRED — the same free source,
+// via the same shared `@/lib/fred` helper, Distresse's own "Macro regime
+// fit" dimension already uses. This fires whenever Aurora hasn't synced at
+// all (`getMacroExport()` returns null — previously 100% RNG in that case)
+// or when Aurora's own export is present but doesn't carry a usable
+// regime/sentiment read yet. It is deliberately coarse and market-wide (says
+// nothing about any one sector), same honesty framing as Distresse's use of
+// the identical data.
+//
 // generatedBy is "Macro Tracker" the moment ANY real Aurora field made it into
-// the reading, "Macro Tracker (sample)" only when nothing real was available
-// (Aurora not synced yet, or every field on the export was null).
+// the reading, "Macro Tracker (FRED)" when regime/sentiment came from the
+// FRED fallback instead (with sectors/catalysts still demo, since FRED has
+// no sector-level view), "Macro Tracker (sample)" only when nothing real was
+// available at all.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SECTORS = [
@@ -90,18 +109,98 @@ function demoNarrative(rng: () => number, overall: number): string {
   );
 }
 
-function fullDemoReading(dateISO: string): MacroReading {
+// ─── Real regime/sentiment fallback — FRED yield curve + jobless claims ────
+// Two real, free (once FRED_API_KEY is set), market-wide series, read via the
+// shared `@/lib/fred` helper (the same one Distresse's "Macro regime fit"
+// dimension uses): the 10Y-2Y Treasury spread (curve shape) and initial
+// jobless claims (a real-time labor-market read). Deliberately simple,
+// explicitly unbacktested linear scoring — same honesty framing as
+// Distresse's own use of T10Y2Y — a real cross-check, not a substitute for
+// Aurora's own (considerably more sophisticated) regime model. Returns null
+// when FRED_API_KEY is unset or BOTH series are unreachable — callers must
+// fall through to the demo path rather than fabricate a reading.
+type FredRegimeRead = { regime: string; sentiment: number; note: string };
+
+async function fredRegimeFallback(): Promise<FredRegimeRead | null> {
+  const [curve, claims] = await Promise.all([
+    fetchFredLatest("T10Y2Y"),
+    fetchFredSeries("ICSA", 8), // weekly initial jobless claims, most-recent-first
+  ]);
+
+  const parts: string[] = [];
+  let scoreSum = 0;
+  let signals = 0;
+  let claimsTrend: "rising" | "falling" | "flat" | null = null;
+
+  if (curve) {
+    const curveWord = curve.value < -0.1 ? "inverted" : curve.value < 0.15 ? "flat" : "normal/steep";
+    const spreadTxt = `${curve.value >= 0 ? "+" : ""}${curve.value.toFixed(2)}pp`;
+    parts.push(`10Y-2Y curve ${spreadTxt} (${curveWord}) as of ${curve.date}`);
+    // Same linear scale as Distresse's own use of this series: +2.0pp -> +100.
+    scoreSum += clamp(curve.value * 50, -100, 100);
+    signals++;
+  }
+
+  if (claims.length >= 2) {
+    const latest = claims[0].value;
+    const priorWindow = claims.slice(1, Math.min(5, claims.length));
+    const priorAvg = priorWindow.reduce((s, o) => s + o.value, 0) / priorWindow.length;
+    const pctChange = priorAvg > 0 ? (latest - priorAvg) / priorAvg : 0;
+    claimsTrend = pctChange > 0.05 ? "rising" : pctChange < -0.05 ? "falling" : "flat";
+    parts.push(
+      `initial jobless claims ${claimsTrend} (latest ${Math.round(latest / 1000)}k vs. ${priorWindow.length}-week avg ${Math.round(priorAvg / 1000)}k) as of ${claims[0].date}`,
+    );
+    // Rising claims = labor market softening = risk-off lean; falling = risk-on.
+    scoreSum += clamp(-pctChange * 400, -100, 100);
+    signals++;
+  }
+
+  if (signals === 0) return null; // FRED_API_KEY unset, or both series unreachable right now
+
+  const sentiment = clamp(Math.round(scoreSum / signals), -100, 100);
+  let regime: string;
+  if (curve && curve.value < -0.1 && claimsTrend === "rising") {
+    regime = "Yield curve inverted, jobless claims rising — real macro data leans late-cycle/growth-scare";
+  } else if (curve && curve.value >= 0.15 && claimsTrend !== "rising") {
+    regime = "Yield curve normal/steep, labor market steady — real macro data leans expansion-consistent";
+  } else if (curve) {
+    regime = `Yield curve ${curve.value < 0.15 ? "flat" : "steep"}, labor-market signal ${claimsTrend ?? "unavailable"} — mixed real macro data, no clean regime call`;
+  } else {
+    regime = `Jobless claims ${claimsTrend ?? "unavailable"} — yield curve unavailable this read, partial real macro data only`;
+  }
+
+  return {
+    regime,
+    sentiment,
+    note: `Real FRED data (not Aurora, not fabricated): ${parts.join("; ")}.`,
+  };
+}
+
+async function fullDemoReading(dateISO: string): Promise<MacroReading> {
   const rng = seeded(`macro:${dateISO}`);
   const sectors = demoSectors(rng);
-  const overall = Math.round(sectors.reduce((s, x) => s + x.sentiment, 0) / sectors.length);
+  const demoOverall = Math.round(sectors.reduce((s, x) => s + x.sentiment, 0) / sectors.length);
+
+  // [2026-09-13] Aurora hasn't synced at all — try the real FRED fallback
+  // before giving up to full RNG, rather than the previous behavior (100%
+  // fabricated regime/sentiment whenever Aurora's export was simply missing).
+  const fred = await fredRegimeFallback();
+  const usedReal = fred != null;
+  const regime = fred?.regime ?? demoRegime(rng);
+  const overall = fred?.sentiment ?? demoOverall;
+  const narrative = demoNarrative(rng, overall);
+  const summary = fred
+    ? `${narrative} Real macro cross-check (Aurora not synced yet): ${fred.note}`
+    : narrative;
+
   return {
     date: dateISO,
-    regime: demoRegime(rng),
+    regime,
     sentiment: overall,
     sectors,
     catalysts: demoCatalysts(dateISO),
-    summary: demoNarrative(rng, overall),
-    generatedBy: "Macro Tracker (sample)",
+    summary,
+    generatedBy: usedReal ? "Macro Tracker (FRED, Aurora not synced)" : "Macro Tracker (sample)",
   };
 }
 
@@ -172,16 +271,31 @@ export const macroTracker: MacroModel = {
 
     const rng = seeded(`macro:${dateISO}`); // only used for whichever pieces fall back
     let usedReal = false;
+    let usedFred = false;
     const honestyNotes: string[] = [];
+
+    // [2026-09-13] Aurora synced, but may not carry a regime label and/or a
+    // usable sentiment read (its own doc above notes every nowcast factor
+    // currently comes back non-skillful) — only pay for the FRED fetch when
+    // at least one of those is actually missing; the result is cached 6h
+    // either way (see @/lib/fred), so a second read in that window is free.
+    const auroraSentiment = sentimentFromAurora(data);
+    const needsFredFallback = !data.regime?.label || auroraSentiment == null;
+    const fred = needsFredFallback ? await fredRegimeFallback() : null;
 
     // ── regime ────────────────────────────────────────────────────────────
     let regime: string;
     if (data.regime?.label) {
       regime = data.regime.label;
       usedReal = true;
+    } else if (fred) {
+      regime = fred.regime;
+      usedReal = true;
+      usedFred = true;
+      honestyNotes.push("no regime label from Aurora yet — regime above is a real FRED yield-curve/jobless-claims read, not Aurora's own regime model");
     } else {
       regime = demoRegime(rng);
-      honestyNotes.push("no regime label from Aurora yet — regime above is an illustrative sample");
+      honestyNotes.push("no regime label from Aurora yet, and FRED_API_KEY unset or FRED unreachable — regime above is an illustrative sample");
     }
 
     // ── sectors ───────────────────────────────────────────────────────────
@@ -209,14 +323,18 @@ export const macroTracker: MacroModel = {
     }
 
     // ── sentiment ─────────────────────────────────────────────────────────
-    const realSentiment = sentimentFromAurora(data);
     let overall: number;
-    if (realSentiment != null) {
-      overall = realSentiment;
+    if (auroraSentiment != null) {
+      overall = auroraSentiment;
       usedReal = true;
+    } else if (fred) {
+      overall = fred.sentiment;
+      usedReal = true;
+      usedFred = true;
+      honestyNotes.push("no skillful nowcast factor and no usable regime-affinity signal from Aurora — sentiment above is a real FRED yield-curve/jobless-claims read instead");
     } else {
       overall = Math.round((rng() - 0.5) * 60);
-      honestyNotes.push("no skillful nowcast factor and no usable regime-affinity signal — overall sentiment above is an illustrative sample number");
+      honestyNotes.push("no skillful nowcast factor and no usable regime-affinity signal, and FRED_API_KEY unset or FRED unreachable — overall sentiment above is an illustrative sample number");
     }
 
     // ── catalysts — always the sample calendar; Aurora models scenarios and
@@ -234,7 +352,8 @@ export const macroTracker: MacroModel = {
     }
     if (data.regime?.flags?.length) realSummaryParts.push(`Flags: ${data.regime.flags.join("; ")}.`);
 
-    const base = realSummaryParts.length > 0 ? realSummaryParts.join(" ") : demoNarrative(rng, overall);
+    let base = realSummaryParts.length > 0 ? realSummaryParts.join(" ") : demoNarrative(rng, overall);
+    if (fred) base += ` Real FRED cross-check: ${fred.note}`;
     const summary = `${base} Honesty note: ${honestyNotes.join("; ")}.`;
 
     return {
@@ -244,7 +363,7 @@ export const macroTracker: MacroModel = {
       sectors,
       catalysts,
       summary,
-      generatedBy: usedReal ? "Macro Tracker" : "Macro Tracker (sample)",
+      generatedBy: !usedReal ? "Macro Tracker (sample)" : usedFred ? "Macro Tracker (Aurora + FRED)" : "Macro Tracker",
     };
   },
 };

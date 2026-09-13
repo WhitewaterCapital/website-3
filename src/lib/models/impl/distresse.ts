@@ -16,6 +16,7 @@ import { callFinbert, finbertConfigured } from "@/lib/sentiment/finbert";
 import { keywordFallbackSentiment } from "@/lib/sentiment/keywordFallback";
 import { computeAggregate } from "@/lib/sentiment/aggregate";
 import type { Headline, TickerSentimentAggregate } from "@/lib/sentiment/types";
+import { fetchFredLatest } from "@/lib/fred";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Distresse — an EvaluatorModel (the adversarial stress test).
@@ -94,35 +95,10 @@ async function getCompanyName(ticker: string): Promise<string | null> {
 // 2-year Treasury spread. Positive/steep = historically a risk-on-supportive
 // regime; negative/inverted = the textbook recession-warning signal. This is
 // a coarse, EXPLICITLY market-wide proxy — it says nothing about this specific
-// ticker's own sector or macro beta. A full per-name Macro Tracker rebuild
-// (PLATFORM_REBUILD_PLAN.md priority #5) is the planned next step past this.
-const FRED_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — matches the commodities route's own FRED TTL
-const fredCache = new Map<string, { value: number; date: string; fetchedAt: number }>();
-
-async function fetchFredLatest(seriesId: string): Promise<{ value: number; date: string } | null> {
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) return null;
-
-  const cached = fredCache.get(seriesId);
-  const now = Date.now();
-  if (cached && now - cached.fetchedAt < FRED_CACHE_TTL_MS) return cached;
-
-  try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=5`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obs = ((json.observations || []) as any[]).filter((o) => o.value !== "."); // FRED uses "." for missing days
-    const latest = obs[0];
-    if (!latest) return null;
-    const result = { value: Number(latest.value), date: latest.date, fetchedAt: now };
-    fredCache.set(seriesId, result);
-    return result;
-  } catch {
-    return null;
-  }
-}
+// ticker's own sector or macro beta. `fetchFredLatest` itself now lives in the
+// shared `@/lib/fred` helper (factored out 2026-09-13 so Macro Tracker's own
+// real-regime fallback — PLATFORM_REBUILD_PLAN.md priority #5 — can call the
+// same fetch+cache logic instead of duplicating it).
 
 async function buildMacroRegimeDimension(
   ticker: string,

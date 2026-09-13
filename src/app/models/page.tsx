@@ -87,6 +87,11 @@ export default function ModelRegistryPage() {
                   Open in Sentiment →
                 </Link>
               )}
+              {m.id === "smart-money-momentum" && (
+                <Link href="/smart-money" className="mt-4 inline-block text-xs font-medium text-accent hover:underline">
+                  Open Smart Money Momentum →
+                </Link>
+              )}
             </div>
           ))}
         </div>

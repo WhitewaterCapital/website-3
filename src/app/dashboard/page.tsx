@@ -39,6 +39,7 @@ const MODULE_LINKS = [
   { href: "/intra-exitus", name: "Entry & Exit", blurb: "Entry/exit levels" },
   { href: "/watch", name: "Position Monitor", blurb: "Invalidations & audit trail" },
   { href: "/weekly", name: "Weekly Ranking", blurb: "Cross-sectional rank" },
+  { href: "/smart-money", name: "Smart Money Momentum", blurb: "Insider buying × momentum beta" },
   { href: "/war-map", name: "WHITEWATCH", blurb: "Geopolitical conflict monitor" },
   { href: "/visuals", name: "Visuals", blurb: "Dislocation field & chaos ribbon" },
   { href: "/models", name: "Model registry", blurb: "Every model, one page" },
