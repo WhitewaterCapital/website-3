@@ -11,9 +11,13 @@ import type { ChaosExport } from "@/lib/models/chaos-export";
 // replay scrubber. Per the planning doc's own recommended build order
 // ("build the static version first... add a replay scrubber over stored
 // data next... only then connect the live stream"), this stops after the
-// replay step: the scrubber drives an INDEX into a stored array of sample
-// snapshots, not a real-time clock, and nothing here streams from a
-// websocket/SSE backend (none exists in this repo).
+// replay step: the scrubber drives an INDEX, not a real-time clock, and
+// nothing here streams from a websocket/SSE backend (none exists in this
+// repo). As of 2026-09-13, that index can point into REAL stored history for
+// the Dislocation field (graph-engine's history.jsonl — see
+// PLATFORM_REBUILD_PLAN.md priority #4) once it has 2+ days in it; the Chaos
+// ribbon still has no history source of its own (see below) and always uses
+// the labeled sample array instead.
 //
 // REMOVED 2026-09-13 (see PLATFORM_REBUILD_PLAN.md, priority #7): Cascade
 // Network and Allocator Ribbon used to render below the Chaos ribbon. Both
@@ -63,34 +67,58 @@ const SAMPLE_PRICE = SAMPLE_CHAOS_POINTS.map((p, i) => {
   return 100 - drawdown + Math.sin(i / 3) * 0.6;
 });
 
-export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; chaos: ChaosExport | null }) {
+export function VisualsClient({
+  graph,
+  graphHistory,
+  chaos,
+}: {
+  graph: GraphExport | null;
+  graphHistory: GraphExport[] | null;
+  chaos: ChaosExport | null;
+}) {
   const [step, setStep] = useState(0);
-  const maxStep = SAMPLE_CHAOS_POINTS.length - 1;
+
+  // Real replay (2026-09-13): once graph-engine's `python -m ge.export` has
+  // run on 2+ distinct days, public/data/graph/history.jsonl has real rows
+  // to scrub through (see graph.ts's getGraphHistory and export.py's
+  // append_history) — below that, one entry tells you nothing a static
+  // snapshot doesn't, so it falls back to the single latest `graph` read,
+  // same as before this history log existed.
+  const hasRealGraphHistory = (graphHistory?.length ?? 0) >= 2;
+  const maxStep = Math.max(SAMPLE_CHAOS_POINTS.length, graphHistory?.length ?? 0) - 1;
 
   // getChaosExport() is a per-ticker SNAPSHOT (one `as_of`), not a stored
-  // time series — there is no chaos history to scrub through yet. When a
-  // real export is present, use its first reading with a usable (non-null)
-  // chaos_index as a single real ChaosPoint. Fall back to the SAMPLE
-  // fixture, clearly labeled, only when no real reading is usable.
+  // time series — there is no chaos history to scrub through yet, and won't
+  // be until WW-CHAOS has a real live intraday feed (it currently has none
+  // at all — see chaos-engine's README — so this isn't fixable by re-running
+  // an export the way the Dislocation field above was). When a real export
+  // is present, use its first reading with a usable (non-null) chaos_index
+  // as a single real ChaosPoint. Fall back to the SAMPLE fixture, clearly
+  // labeled, only when no real reading is usable.
   const primaryReading = chaos?.readings.find((r) => r.chaos_index != null) ?? null;
   const chaosIsReal = primaryReading != null;
   const chaosPoints = primaryReading
     ? [{ state: primaryReading.state_label, index: primaryReading.chaos_index as number, asOf: primaryReading.as_of }]
     : SAMPLE_CHAOS_POINTS;
 
+  const graphAtStep = hasRealGraphHistory
+    ? graphHistory![Math.min(step, graphHistory!.length - 1)]
+    : graph;
+  const replayTimestamp = hasRealGraphHistory
+    ? `${graphAtStep!.as_of} (day ${Math.min(step, graphHistory!.length - 1) + 1}/${graphHistory!.length})`
+    : SAMPLE_CHAOS_POINTS[Math.min(step, SAMPLE_CHAOS_POINTS.length - 1)].asOf.slice(0, 16).replace("T", " ");
+
   return (
     <div className="space-y-10">
-      {/* Shared replay scrubber — now only drives the Chaos ribbon's sample
-         fallback below; real chaos/dislocation reads are single snapshots
-         until the history-log infra (plan priority #4) exists to scrub
-         through actual stored history instead of a synthetic one. */}
+      {/* Shared replay scrubber. Drives the Dislocation field through REAL
+         history once graph-engine has 2+ days exported (see above);
+         otherwise (and always, for the Chaos ribbon, which has no history
+         source yet) it steps through the labeled sample fixture. */}
       <Card title="Replay">
         <p className="text-xs text-muted">
-          Steps through a stored array of sample snapshots — not a live
-          clock, and only active while the Chaos ribbon below has no real
-          reading to show instead. The Dislocation field is a static, real
-          snapshot regardless of this control (noted on the panel) until a
-          real history log exists to scrub through.
+          {hasRealGraphHistory
+            ? `Scrubs through ${graphHistory!.length} real days of WW-GRAPH history for the Dislocation field below. The Chaos ribbon still has no history source (WW-CHAOS has no live intraday feed wired in) — it uses the labeled sample series regardless of this control.`
+            : "The Dislocation field below is a single real (or synthetic-demo) snapshot until graph-engine's export has run on 2+ distinct days — this control currently only steps through the Chaos ribbon's labeled sample series."}
         </p>
         <div className="mt-4 flex items-center gap-4">
           <input
@@ -102,14 +130,20 @@ export function VisualsClient({ graph, chaos }: { graph: GraphExport | null; cha
             className="w-full accent-foreground motion-reduce:transition-none"
             aria-label="Replay position"
           />
-          <span className="w-40 shrink-0 text-right font-mono text-xs text-muted tabular-nums">
-            {SAMPLE_CHAOS_POINTS[step].asOf.slice(0, 16).replace("T", " ")}
+          <span className="w-48 shrink-0 text-right font-mono text-xs text-muted tabular-nums">
+            {replayTimestamp}
           </span>
         </div>
       </Card>
 
       <Card title="Dislocation field — WW-GRAPH residuals">
-        <DislocationField data={graph} />
+        {hasRealGraphHistory && (
+          <p className="mb-3 text-xs text-muted">
+            Replaying real history — day {Math.min(step, graphHistory!.length - 1) + 1} of{" "}
+            {graphHistory!.length}. Drag the Replay slider above.
+          </p>
+        )}
+        <DislocationField data={graphAtStep} />
       </Card>
 
       <Card title="Chaos ribbon — CHAOS-01 state">

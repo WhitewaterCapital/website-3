@@ -5,6 +5,13 @@ Writes a contract-compliant JSON to:
   * <repo>/public/data/graph/latest.json   (web-servable)
   * <engine>/exports/latest.json            (engine-side copy)
 
+Also APPENDS the same payload as one line to
+<repo>/public/data/graph/history.jsonl (rotating, last 180 days) — see
+`append_history` below. Run this once a day (or more) and the website's
+`/visuals` Dislocation Field panel accumulates real history to scrub through
+instead of showing a single static snapshot. Zero effect on `latest.json`'s
+own shape or the live/synthetic-demo gate below.
+
 Run:  python -m ge.export
 
 Gated exactly like `src/app/api/whitewatch/predictions/route.js`'s
@@ -193,6 +200,48 @@ def build_live_export(cfg: PipelineConfig | None = None) -> dict:
     }
 
 
+def default_history_path() -> Path:
+    engine_dir = Path(__file__).resolve().parent.parent
+    repo_root = engine_dir.parent
+    return repo_root / "public" / "data" / "graph" / "history.jsonl"
+
+
+def append_history(payload: dict, path: Path | None = None, max_entries: int = 180) -> Path:
+    """Append one JSONL line per export run to a small, rotating history log,
+    so the website can eventually scrub through REAL history instead of one
+    static snapshot (PLATFORM_REBUILD_PLAN.md priority #4 — "history, done
+    properly"). Deliberately dumb: read existing lines, drop the oldest once
+    over `max_entries`, append the new one (or REPLACE the last line if it's
+    the same `as_of` — re-running the export twice in one day shouldn't
+    produce two points for the same day), rewrite the whole file. This
+    engine's universe is small (tens of tickers at most) and this runs at
+    most a few times a day, so a full read/rewrite is not a performance
+    concern; a real database swap later only touches this function, same as
+    every other export seam in this codebase (`write_export` above).
+
+    Each line is the FULL export payload (same shape `write_export` writes to
+    `latest.json`) — not a slimmed record — so the website side can replay a
+    past line through the exact same `DislocationField` component that
+    renders the latest snapshot today, with no separate history type needed.
+    """
+    path = path or default_history_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    if path.exists():
+        lines = [ln for ln in path.read_text().splitlines() if ln.strip()]
+        if lines:
+            try:
+                last = json.loads(lines[-1])
+            except (json.JSONDecodeError, ValueError):
+                last = None
+            if last is not None and last.get("as_of") == payload.get("as_of"):
+                lines = lines[:-1]  # replace today's existing entry rather than duplicate it
+    lines.append(json.dumps(payload))
+    lines = lines[-max_entries:]
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
 def default_export_paths() -> list[Path]:
     engine_dir = Path(__file__).resolve().parent.parent
     repo_root = engine_dir.parent
@@ -217,6 +266,8 @@ def write_export(payload: dict, paths: list[Path] | None = None) -> list[Path]:
 def main() -> int:
     payload = build_export()
     written = write_export(payload)
+    history_path = append_history(payload)
+    history_len = len([ln for ln in history_path.read_text().splitlines() if ln.strip()])
     conf: dict[str, int] = {}
     for r in payload["residuals"]:
         conf[r["confidence"]] = conf.get(r["confidence"], 0) + 1
@@ -224,6 +275,7 @@ def main() -> int:
     print(f"  confidence: {conf}")
     for w in written:
         print(f"  written to: {w}")
+    print(f"  history appended to: {history_path} ({history_len} day(s) so far)")
     return 0
 
 

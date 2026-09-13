@@ -1,13 +1,25 @@
 import { ModuleNav } from "@/components/ModuleNav";
 import { VisualsClient } from "@/components/VisualsClient";
-import { getGraphExport } from "@/lib/graph";
+import { getGraphExport, getGraphHistory } from "@/lib/graph";
 import { getChaosExport } from "@/lib/chaos";
 
-// VISUAL LAYER — VIS-01. Two static + replay views: a dislocation field
-// (real WW-GRAPH residuals) and a chaos state ribbon. Static first, then a
-// replay scrubber over stored snapshots — per the planning doc's own build
-// order, this does NOT connect to a live stream (no websocket/SSE backend
-// exists in this repo yet).
+// VISUAL LAYER — VIS-01. Two views: a dislocation field (real WW-GRAPH
+// residuals) and a chaos state ribbon. Neither connects to a live stream (no
+// websocket/SSE backend exists in this repo) — this does NOT stream, it
+// reads whatever the engines last exported.
+//
+// Real replay history (2026-09-13): `python -m ge.export` (graph-engine) now
+// appends each run to public/data/graph/history.jsonl (see that file's
+// `append_history`) instead of only overwriting latest.json. Once that log
+// has 2+ distinct days in it, VisualsClient's replay scrubber drives the
+// Dislocation Field through REAL accumulated history, not a static single
+// snapshot — it just needs the export run more than once (daily, ideally) to
+// have anything to scrub through. Below 2 entries it still shows the single
+// latest snapshot, same as before. The Chaos ribbon has no equivalent yet:
+// WW-CHAOS has no live intraday feed wired in at all (see chaos-engine's own
+// README — this needs new data infrastructure, not just re-running a
+// command), so its replay still uses the labeled SAMPLE_CHAOS_POINTS fixture
+// unless a real (single-point) reading exists.
 //
 // Used to be four panels. The other two — a cascade-pressure network and an
 // allocator budget ribbon — were 100% fabricated fixtures with no real seam
@@ -29,8 +41,11 @@ import { getChaosExport } from "@/lib/chaos";
 export const dynamic = "force-dynamic"; // always read the latest WW-GRAPH / WW-CHAOS export
 
 export default async function VisualsPage() {
-  const graph = await getGraphExport();
-  const chaos = await getChaosExport();
+  const [graph, graphHistory, chaos] = await Promise.all([
+    getGraphExport(),
+    getGraphHistory(),
+    getChaosExport(),
+  ]);
 
   return (
     <div>
@@ -43,14 +58,16 @@ export default async function VisualsPage() {
         <h1 className="display mt-2 text-3xl sm:text-4xl">Two ways to see the market moving.</h1>
         <p className="mt-3 max-w-2xl text-muted">
           Both panels read real export seams — WW-GRAPH&apos;s residual
-          dislocations, and WW-CHAOS&apos;s state read — though both are
-          currently synthetic-demo data per their own exports, not a live
-          market feed, and each is a single snapshot rather than a real
-          history to scrub through yet. Each panel says exactly what it is.
+          dislocations, and WW-CHAOS&apos;s state read. Each panel says
+          exactly what it is: live vs. synthetic-demo market data, and, for
+          the Dislocation field, how many real days of history it actually
+          has to scrub through ({graphHistory ? graphHistory.length : 0} so
+          far — it grows by one every time <code>python -m ge.export</code>
+          runs).
         </p>
 
         <div className="mt-8">
-          <VisualsClient graph={graph} chaos={chaos} />
+          <VisualsClient graph={graph} graphHistory={graphHistory} chaos={chaos} />
         </div>
       </main>
     </div>
