@@ -74,14 +74,27 @@ produces.
 
 ## Data
 
-**No live price or sector data is wired up in this sandbox.** Every number
-this engine can currently produce is built from `ge/synthetic.py` — a
-deterministic synthetic universe/return panel — and is labeled
-`"data_provenance": "synthetic-demo"` everywhere it surfaces (the export JSON,
-and the TypeScript contract in `src/lib/models/graph-export.ts`). Wiring a
-real price adapter (same shape as
-`intra-exitus-engine/ie/adapters/prices_tiingo.py`) and a real sector-mapping
-source is the natural next step before this ever touches real capital.
+A real Tiingo daily-price adapter is now wired up: `ge/adapters/prices_tiingo.py`
+(a self-contained copy of the same pattern `intra-exitus-engine/ie/adapters/prices_tiingo.py`
+and `engine/incepta/adapters/prices_tiingo.py` use), and `ge/config.py` now
+carries a real 48-name, 6-sector `UNIVERSE`/`SECTOR_MAP` alongside the
+synthetic generator. `ge/export.py::build_export()` is gated on
+`TIINGO_API_KEY` in `os.environ` — the same free key intra-exitus-engine and
+Incepta already use, and the same "stub until a key is configured" pattern as
+`src/app/api/whitewatch/predictions/route.js`'s `ANTHROPIC_API_KEY` check:
+
+* **Key set** — `build_live_export()` fetches real daily closes for
+  `ge.config.UNIVERSE` and runs them through the SAME, unmodified
+  `construct.py`/`diffusion.py`/`residual.py`/`reversion.py` pipeline used
+  below — only the data source changes, not the model math — labeled
+  `"data_provenance": "live"`.
+- **Key unset** — exactly the original fallback: a deterministic synthetic
+  universe/price history from `ge/synthetic.py`, labeled
+  `"data_provenance": "synthetic-demo"`. The two are never mixed within one
+  export.
+
+See "Current status" below for exactly what has and has not been verified
+about the live path in this sandbox.
 
 > **Not investment advice.** Research/paper output only, and — in this
 > sandbox — built entirely on synthetic data. Not a validated alpha model.
@@ -91,8 +104,10 @@ source is the natural next step before this ever touches real capital.
 ```
 graph-engine/
   ge/
-    config.py           # every fixed, documented constant
+    config.py           # every fixed, documented constant + the live UNIVERSE/SECTOR_MAP
     synthetic.py         # deterministic synthetic OHLCV/return panels
+    adapters/
+      prices_tiingo.py    # real Tiingo daily-price client, gated on TIINGO_API_KEY
     features/
       signal.py          # PIT signal: cross-sectionally z-scored 5-day return
     graph/
@@ -115,14 +130,29 @@ cd graph-engine
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-pytest -q                    # full test suite (synthetic, no network needed)
+pytest -q                    # full test suite (synthetic + mocked-Tiingo, no network needed)
 python -m ge.export          # writes public/data/graph/latest.json (synthetic-demo)
+
+# For a LIVE export instead: register free at https://www.tiingo.com, then
+echo "TIINGO_API_KEY=your_token" > .env
+python -m ge.export          # now writes data_provenance: "live"
 ```
 
 ## Current status / limitations
 
-- **No real data adapter.** See "Data" above. This is the single biggest gap
-  before this could ever inform a real position.
+- **Live once `TIINGO_API_KEY` is set** (same free key used by
+  intra-exitus-engine and Incepta); falls back to `synthetic-demo` otherwise.
+  The live path has been built and unit-tested against mocked Tiingo
+  responses (`tests/test_prices_tiingo.py`) and against a mocked
+  `fetch_close_panel` feeding the real pipeline end to end
+  (`tests/test_export.py`), but **not yet run against the real API from this
+  environment — this sandbox has no outbound network access at all**. The
+  next real run (e.g. the scheduled GitHub Action, which has normal internet
+  access) is the first true end-to-end verification of the live path.
+- **The live `UNIVERSE` (48 names, 6 sectors) is illustrative, not
+  survivorship-free or point-in-time** — see `ge/config.py`'s comment and the
+  adapter's own INTEGRITY NOTES. Today's constituents, not a historical
+  membership file.
 - **Only one edge source beyond correlation is implemented: a same-sector
   prior.** Real ETF-holdings-weighted edges (two names both heavily held by
   the same basket), supply-chain/customer-supplier edges, and text-similarity

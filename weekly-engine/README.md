@@ -33,7 +33,9 @@ Four sealed layers, mirroring intra-exitus-engine's shape:
 weekly-engine/
   wf/
     config.py            # universe, sector map, embargo/horizon constants
-    synthetic.py          # ONLY data source available in this sandbox — see below
+    synthetic.py          # the synthetic-demo fallback data source — see below
+    adapters/
+      prices_tiingo.py     # real Tiingo daily-price client, gated on TIINGO_API_KEY
     labels.py              # fwd_return, sector_relative_fwd_return, look-ahead guard
     features/
       registry.py           # @feature(name, version, lookback, rationale) decorator
@@ -242,31 +244,36 @@ lands there.
 
 ## What a real run needs
 
-Everything above ran on `wf/synthetic.py` because **no real point-in-time
-weekly price/volume feed is wired into this sandbox** — there is no live
-data adapter here at all (unlike `intra-exitus-engine`, which has a Tiingo
-client). `wf/export.py`'s output is marked with a `provenance.kind =
-"synthetic-demo"` field precisely so this is never mistaken for a real
-forecast. A real deployment needs:
+A real Tiingo daily-price adapter is now wired up: `wf/adapters/prices_tiingo.py`
+(a self-contained copy of the same pattern `intra-exitus-engine/ie/adapters/prices_tiingo.py`
+and `engine/incepta/adapters/prices_tiingo.py` use), fetching daily OHLCV per
+name and resampling it to weekly bars — exactly the `close`/`volume` shape
+`features/panel.py::prepare_base` requires. `wf/export.py::build_export()` is
+gated on `TIINGO_API_KEY` in `os.environ` — the same free key
+intra-exitus-engine and Incepta already use, and the same "stub until a key
+is configured" pattern as `src/app/api/whitewatch/predictions/route.js`'s
+`ANTHROPIC_API_KEY` check:
 
-1. **A point-in-time weekly OHLCV feed** per name in the universe (a daily
-   feed resampled to weekly, e.g. via Tiingo like `intra-exitus-engine`,
-   would work — `features/panel.py::prepare_base` only requires
-   close/volume columns).
-2. **A maintained, point-in-time universe + sector file.** `config.UNIVERSE`
-   / `config.SECTOR_MAP` are a small illustrative hardcoded list; real
-   constituents and sector tags change over time, and using today's universe
-   membership to backtest history would itself be a (survivorship) leak.
-3. **Enough history per name** for the longest lookback (52 weeks for
-   momentum/dist-from-high) plus enough post-warm-up weeks for several
-   purged walk-forward folds — a few years minimum, matching what
-   `wf/synthetic.py`'s 320-week demo approximates.
-4. **Re-running the calibration**, not reusing the synthetic numbers above.
-   The real embedded (or absent) signal in real markets has no reason to
-   land at the same rank IC as any synthetic fixture; the honest-negative
-   discipline in `tests/test_validation_harness.py` — and the "far above
-   the band means suspect a leak" instinct — is what should be re-applied
-   to real numbers, not this README's synthetic ones.
+* **Key set** — real weekly OHLCV for `wf.config.UNIVERSE` (unchanged — the
+  same 16 real tickers) is fetched from Tiingo and run through the SAME,
+  unmodified feature/label/model/validation pipeline described above — only
+  the data source changes, not the model math — labeled `provenance.kind =
+  "live"`.
+* **Key unset** — exactly the original fallback: a plausible-but-fake weekly
+  panel from `wf/synthetic.py`, labeled `provenance.kind = "synthetic-demo"`.
+  The two are never mixed within one export.
+
+`config.UNIVERSE`/`config.SECTOR_MAP` are unchanged either way — a small
+illustrative hardcoded list, not a maintained point-in-time universe/sector
+file; using today's constituents to backtest history would itself be a
+(survivorship) leak regardless of whether the prices feeding it are real or
+synthetic. See "Current status" below for exactly what has and has not been
+verified about the live path in this sandbox, and re-run the calibration
+(don't reuse the synthetic numbers above) once real exports accumulate: the
+real embedded (or absent) signal in real markets has no reason to land at the
+same rank IC as any synthetic fixture — the honest-negative discipline in
+`tests/test_validation_harness.py`, and the "far above the band means suspect
+a leak" instinct, is what should be re-applied to real numbers.
 
 ## Quickstart (in this sandbox)
 
@@ -274,14 +281,34 @@ forecast. A real deployment needs:
 cd weekly-engine
 python3 -m wf.export        # writes public/data/weekly/latest.json (synthetic mode)
 python3 /home/claude/repo/_pyshim/run_tests.py $(pwd) tests   # offline pytest-shim
+
+# For a LIVE export instead: register free at https://www.tiingo.com, then
+echo "TIINGO_API_KEY=your_token" > .env
+python3 -m wf.export        # now writes provenance.kind: "live"
 ```
 
 In a normal environment with real pytest installed: `pytest -q` from this
 directory (see `pytest.ini`).
 
+## Current status: the live path
+
+**Live once `TIINGO_API_KEY` is set** (same free key used by
+intra-exitus-engine and Incepta); falls back to `synthetic-demo` otherwise.
+The live path has been built and unit-tested against mocked Tiingo responses
+(`tests/test_prices_tiingo.py`) and against a mocked
+`fetch_universe_weekly_prices` feeding the real pipeline end to end
+(`tests/test_export.py`), but **not yet run against the real API from this
+environment — this sandbox has no outbound network access at all**. The next
+real run (e.g. the scheduled GitHub Action, which has normal internet access)
+is the first true end-to-end verification of the live path.
+
 ## What's simplified here, and why
 
-- **No real data adapter.** Covered above — there is none in this sandbox.
+- **The live universe is small (16 names).** Covered above — real
+  cross-sectional ranking is more informative with hundreds of names; keeping
+  the same 16-name `UNIVERSE` for the live path (rather than expanding it)
+  was a deliberate choice so the live/synthetic comparison stays apples to
+  apples once real exports accumulate.
 - **Deflated Sharpe is really PSR-vs-0 in this report.** `deflated_sharpe_ratio`
   is called with `n_trials=1`, which — per Bailey & López de Prado's own
   formula — makes the "expected max Sharpe across trials" term undefined and
@@ -295,9 +322,6 @@ directory (see `pytest.ini`).
   weeks**, not against the live/published forecast history (there isn't one
   yet — this is the first export). Once real exports accumulate week over
   week, turnover of the actually-published ranking becomes measurable too.
-- **The universe is small and synthetic (16 or 20 names)** — real
-  cross-sectional ranking is more informative with hundreds of names; the
-  small universe here is purely a function of no real data being available.
 - **The synthetic embedded-signal generator is a simplification of real
   momentum/mean-reversion dynamics**, not a simulator of actual market
   microstructure. It exists only to make the two honesty tests

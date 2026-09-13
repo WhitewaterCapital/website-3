@@ -4,6 +4,7 @@ pandas>=2.0
 numpy>=1.24
 scipy>=1.10            # sparse matrix-vector products for the diffusion step
 scikit-learn>=1.3      # sklearn.covariance.LedoitWolf (shrunk correlation)
+requests>=2.31         # ge/adapters/prices_tiingo.py — live path, gated on TIINGO_API_KEY
 
 # Test runner.
 pytest>=7.4

@@ -4,13 +4,23 @@ Same pattern as intra-exitus-engine/ie/export.py: build_export() does the
 work and returns a dict, write_export() writes it to both the web-servable
 path and an engine-side copy, main() is the CLI entry point.
 
-NO REAL DATA SOURCE IN THIS SANDBOX: there is no live point-in-time weekly
-price/volume feed wired up here (see README.md, "What a real run needs"), so
-this always runs in synthetic/demo mode, generating a plausible-but-fake
-weekly panel (wf/synthetic.py) with a small embedded signal calibrated to the
-spec's own "genuinely good" 0.02-0.05 OOS rank IC band. The export's
-`provenance` field says so explicitly — this must never be mistaken for a
-real forecast.
+Gated exactly like `src/app/api/whitewatch/predictions/route.js`'s
+ANTHROPIC_API_KEY check: `build_export()` looks for `TIINGO_API_KEY` in
+`os.environ` (see `wf/adapters/prices_tiingo.py`, same free key
+intra-exitus-engine and Incepta already use).
+
+  * KEY SET   -> `_live_weekly_prices()` fetches real weekly-resampled OHLCV
+    for `wf.config.UNIVERSE` (unchanged — 16 real tickers) from Tiingo. That
+    feeds the SAME, unmodified feature/label/model/validation pipeline below
+    — no model-math changes, only the data source — and the export's
+    `provenance.kind` is `"live"`.
+  * KEY UNSET -> exactly the prior behaviour: a plausible-but-fake weekly
+    panel from `wf.synthetic` with a small embedded signal calibrated to the
+    spec's own "genuinely good" 0.02-0.05 OOS rank IC band, `provenance.kind`
+    `"synthetic-demo"`. This is the never-touched fallback demo path.
+
+The two provenances are never mixed within one export: `build_export()`
+picks exactly one `weekly_prices` source and runs the whole pipeline on it.
 
 Run:  python3 -m wf.export        (from weekly-engine/, with weekly-engine on PYTHONPATH)
 """
@@ -18,6 +28,7 @@ Run:  python3 -m wf.export        (from weekly-engine/, with weekly-engine on PY
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -25,7 +36,15 @@ import numpy as np
 import pandas as pd
 
 from . import __version__ as ENGINE_VERSION
-from .config import EMBARGO_WEEKS, LABEL_HORIZON_WEEKS, SECTOR_MAP, UNIVERSE, exports_dir, repo_root
+from .config import (
+    EMBARGO_WEEKS,
+    LABEL_HORIZON_WEEKS,
+    LIVE_HISTORY_START,
+    SECTOR_MAP,
+    UNIVERSE,
+    exports_dir,
+    repo_root,
+)
 from .features import build_feature_panel
 from .features.panel import feature_manifest_hash
 from .model.gbm import fit_gbm, predict_gbm
@@ -34,6 +53,13 @@ from .model.quantile import fit_quantile_models, predict_quantiles, sort_quantil
 from .model.ridge import fit_ridge, predict_ridge, rank_transform_features
 from .synthetic import generate_synthetic_weekly_prices
 from .validation.harness import run_walk_forward
+
+# A live weekly frame needs at least this many weeks for the pipeline to be
+# meaningful: 52 (the longest lookback, `mom_52`/`dist_52w_high`) plus real
+# room for several purged walk-forward folds after warmup. Far below this
+# and a "live" export would be technically well-formed but not actually
+# validated on anything — fail loudly instead (see `_live_weekly_prices`).
+MIN_LIVE_WEEKS = 120
 
 SCHEMA_VERSION = "1.0.0"
 DISCLAIMER = (
@@ -87,14 +113,70 @@ def _synthetic_provenance() -> dict:
     }
 
 
-def build_export() -> dict:
-    weekly_prices = generate_synthetic_weekly_prices(
+def _synthetic_weekly_prices() -> dict:
+    return generate_synthetic_weekly_prices(
         UNIVERSE,
         n_weeks=DEMO_N_WEEKS,
         seed=DEMO_SEED,
         signal_strength=DEMO_SIGNAL_STRENGTH,
         start=_synthetic_calendar_start(DEMO_N_WEEKS),
     )
+
+
+def _live_weekly_prices() -> dict:
+    """Real weekly-resampled OHLCV for every name in `wf.config.UNIVERSE`,
+    fetched from Tiingo. Raises `RuntimeError` (never falls back to
+    synthetic data) if any covered ticker comes back with too little history
+    to run the real pipeline on — a broken live fetch must be a loud
+    failure, not a silently partial or mixed-provenance export."""
+    from .adapters.prices_tiingo import TiingoClient, fetch_universe_weekly_prices
+
+    client = TiingoClient()
+    weekly_prices = fetch_universe_weekly_prices(
+        UNIVERSE, start=date.fromisoformat(LIVE_HISTORY_START), client=client
+    )
+    too_short = {t: len(df) for t, df in weekly_prices.items() if len(df) < MIN_LIVE_WEEKS}
+    if too_short:
+        raise RuntimeError(
+            "Tiingo returned too little weekly history to run the live pipeline "
+            f"(need >= {MIN_LIVE_WEEKS} weeks): {too_short} — refusing to publish a "
+            "partial/mixed-provenance live export."
+        )
+    return weekly_prices
+
+
+def _live_provenance(n_weeks: int) -> dict:
+    return {
+        "kind": "live",
+        "note": (
+            "Real point-in-time daily OHLCV from Tiingo (free tier), resampled to weekly, "
+            "feeding the unmodified real feature/label/model/validation pipeline below. "
+            "`seed` and `signal_strength` are not meaningful for real market data (there is "
+            "no fixture to seed or a controlled signal to strength) and are carried at 0 "
+            "purely for schema compatibility with the synthetic-demo provenance shape above "
+            "-- read `n_weeks` (the real weekly history actually used) instead."
+        ),
+        "generator": "wf.adapters.prices_tiingo.fetch_universe_weekly_prices",
+        "seed": 0,
+        "signal_strength": 0.0,
+        "n_weeks": n_weeks,
+    }
+
+
+def build_export() -> dict:
+    """Single entry point, gated on `TIINGO_API_KEY` exactly as described in
+    this module's docstring."""
+    # NOTE: named `use_live_data`, not `live` -- this function later reuses
+    # the name `live` for the last-week forecast frame (unrelated, existing
+    # code); a shared name here would shadow it and read as a mistake.
+    use_live_data = bool(os.environ.get("TIINGO_API_KEY", "").strip())
+    if use_live_data:
+        weekly_prices = _live_weekly_prices()
+        provenance = _live_provenance(n_weeks=min(len(df) for df in weekly_prices.values()))
+    else:
+        weekly_prices = _synthetic_weekly_prices()
+        provenance = _synthetic_provenance()
+
     panel, feature_cols, manifest = build_feature_panel(weekly_prices, SECTOR_MAP)
     manifest_hash = feature_manifest_hash(manifest)
 
@@ -176,7 +258,7 @@ def build_export() -> dict:
         "universe": list(UNIVERSE),
         "disclaimer": DISCLAIMER,
         "forecasts": forecasts,
-        "provenance": _synthetic_provenance(),
+        "provenance": provenance,
         "validation": {
             "n_folds": report.n_folds,
             "ridge_mean_rank_ic": _safe_round(report.ridge_mean_rank_ic),
