@@ -67,13 +67,24 @@ export function DistressePanel({ v }: { v: StressVerdict }) {
           <div key={d.label}>
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium">{d.label}</span>
-              <span className={`tabular-nums ${d.score >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {d.score > 0 ? "+" : ""}
-                {d.score}
-              </span>
+              {d.available ? (
+                <span className={`tabular-nums ${d.score >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                  {d.score > 0 ? "+" : ""}
+                  {d.score}
+                </span>
+              ) : (
+                <span className="text-muted">n/a</span>
+              )}
             </div>
-            <div className="mt-1"><ScoreBar score={d.score} /></div>
-            <p className="mt-1 text-xs text-muted">{d.note}</p>
+            {/* An unavailable dimension gets no bar and no number — a real
+               source had nothing usable here, so nothing is fabricated to
+               fill the space. See types.ts's Dimension.available. */}
+            {d.available && (
+              <div className="mt-1">
+                <ScoreBar score={d.score} />
+              </div>
+            )}
+            <p className={`mt-1 text-xs ${d.available ? "text-muted" : "italic text-muted/80"}`}>{d.note}</p>
           </div>
         ))}
       </div>

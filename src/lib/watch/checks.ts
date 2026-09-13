@@ -77,10 +77,13 @@ function worseOf(a: CheckSeverity, b: CheckSeverity): CheckSeverity {
   return SEVERITY_RANK[a] >= SEVERITY_RANK[b] ? a : b;
 }
 
-// A demo/fallback plan is tagged with "(sample)" in generatedBy by every
-// model in this codebase (see impl/intra-exitus.ts, impl/distresse.ts) — the
+// A demo/fallback plan is tagged with "(sample)" in generatedBy — see
+// impl/intra-exitus.ts's demo fallback, still RNG as of this writing — the
 // same convention EquityReader.tsx already keys its own "⚠ SAMPLE" banner off
-// of. Reused here rather than re-invented.
+// of. Reused here rather than re-invented. (Distresse itself was rebuilt on
+// real data 2026-09-13 — see impl/distresse.ts — and never emits this tag
+// anymore; its generatedBy instead reports how many of its 6 dimensions had
+// real coverage for this idea.)
 function isSampleGenerated(generatedBy: string): boolean {
   return generatedBy.toLowerCase().includes("sample");
 }
@@ -282,8 +285,9 @@ function timeInTradeVsHorizon(position: Position, nowIso: string): CheckResult {
 // check is honestly `available: false`, not silently skipped.
 //
 // It compares StressVerdict fields only (rating, conviction), not the plan's
-// dollar levels — Distresse's demo scoring has no dependency on real price at
-// all, so it survives the same-anchor-mismatch problem `invalidationTrafficLight`
+// dollar levels — Distresse's scoring (real as of 2026-09-13, see
+// impl/distresse.ts) has no dependency on this position's own price at all,
+// so it survives the same-anchor-mismatch problem `invalidationTrafficLight`
 // documents above; comparing dollar levels from a demo-fallback plan would not.
 const RATING_RANK: Record<StressVerdict["rating"], number> = { go: 2, conditional: 1, "no-go": 0 };
 
@@ -324,7 +328,7 @@ function forecastDriftSinceEntry(verdict: StressVerdict, entryContext: PositionE
       `${ratingSteps > 0 ? `Rating has stepped down ${ratingSteps} level(s). ` : ratingSteps < 0 ? "Rating has improved. " : ""}` +
       `Conviction has moved ${convictionDelta >= 0 ? "+" : ""}${convictionDelta} points.` +
       (regimeChanged ? " The regime read has also changed." : "") +
-      " (Demo-model caveat: this repo's Distresse implementation is a deterministic, time-invariant seeded function of ticker+instrument — see impl/distresse.ts — so re-running it never drifts on its own; any drift shown here comes entirely from the hand-authored entry snapshot differing from that fixed demo output, not from a real model changing its mind. A real, non-deterministic model would make this check meaningful on its own.)",
+      " (Distresse is now grounded in real market/filing/news data (FRED, WW-Factor, SEC EDGAR Form 4, Incepta, live news sentiment — see impl/distresse.ts) rather than a deterministic seeded demo, so a genuine drift shown here reflects that real evidence actually changing since entry, not fixed-function noise. Coverage can still differ between the two reads if a real source abstained at one time and not the other — see each verdict's dimensions for which ones were available.)",
     data: { entryRating: entry.rating, liveRating: verdict.rating, entryConviction: entry.conviction, liveConviction: verdict.conviction, convictionDelta, regimeChanged },
   };
 }
@@ -647,7 +651,13 @@ export function runChecks(
     currentPriceUsd: position.lastPriceUsd,
     bias,
     weeklyQuantile,
-    dimensionDispersion: verdict.dimensions.length ? stdev(verdict.dimensions.map((d) => d.score)) : null,
+    // Only real (available) dimensions feed the dispersion read — an
+    // abstained dimension's placeholder 0 score is not a real reading and
+    // would silently pull dispersion toward 0 (fake agreement) if included.
+    dimensionDispersion: (() => {
+      const scored = verdict.dimensions.filter((d) => d.available).map((d) => d.score);
+      return scored.length ? stdev(scored) : null;
+    })(),
     stateVolatilityZ: stateExport?.state_vector.volatility.available ? stateExport.state_vector.volatility.value : null,
   };
 

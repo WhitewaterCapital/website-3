@@ -50,8 +50,14 @@ export type Rating = "go" | "conditional" | "no-go";
 
 export type Dimension = {
   label: string; // "Macro regime fit"
-  score: number; // -100 (hostile) .. +100 (supportive)
+  score: number; // -100 (hostile) .. +100 (supportive). Meaningless when available === false — see below.
   note: string;
+  // false when the real source behind this dimension had nothing usable for
+  // this idea (not covered, insufficient confidence, unreachable, no signal
+  // transactions, etc.) — `score` is then a neutral placeholder (0), NEVER a
+  // fabricated read, and `note` explains why. UI must render an abstain
+  // state, not a score bar, when this is false (see ModelPanels.tsx).
+  available: boolean;
 };
 
 export type StressVerdict = {
