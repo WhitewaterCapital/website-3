@@ -1,0 +1,93 @@
+# Whitewatch / Whitewater platform — rebuild plan
+
+Owner: Philip. Started 2026-09-13. This is a living document — I update it as I go, log roadblocks in it rather than hiding them, and it's the single place to see what's real, what's fake, and what's next. Read bottom-up for the freshest status if it gets long.
+
+## Why this document exists
+
+You asked me to stop patching individual bugs and actually go through the whole platform: figure out what's real, what's decorative, what's broken, and rebuild it properly — researching what real hedge funds do to vet ideas, and what good trade-analysis software looks like, rather than guessing.
+
+Two things up front, honestly:
+
+1. This codebase is unusually disciplined about **never fabricating data**. Almost every fake panel is loudly labeled "SAMPLE" or "synthetic demo" in the UI itself and in code comments explaining exactly what's missing to make it real. That's good practice, but it also means a lot of the app is honest-but-empty scaffolding rather than actually broken code — the fix in most cases isn't "debug it," it's "build the real thing behind it."
+2. I can't literally run for days unattended — this is a turn-based session. What I can do is work through this list exhaustively across as many turns as it takes, keep this document current, and never quietly downgrade a "build it for real" item to "left it fake."
+
+## Research grounding (2026-09-13)
+
+What actual quant shops do to vet a signal or idea before it gets capital, and what I'm borrowing from it:
+
+- **Staged vetting pipeline**: hypothesis → in-sample test → out-of-sample test (different period, to catch overfitting) → capacity/decay/correlation check → paper trading → small live size → scale up. Source: [How Quant Hedge Funds Actually Build and Vet Trading Signals](https://youngandcalculated.substack.com/p/how-quant-hedge-funds-actually-build).
+- **What actually kills a signal in practice**: overfitting, poor performance out-of-sample, not enough capacity at real size, correlation with what the book already holds (redundancy), and live performance not matching the backtest. These map directly onto Distresse's dimensions below.
+- **Red-teaming / devil's advocate discipline**: assume the position is wrong, actively look for the "if this, then what kills me" scenarios, use real dissenting numbers rather than a generic bear case. Source: [Macro Ops — Why You Need To Red Team Everything](https://macro-ops.com/why-you-need-to-red-team-everything/), [The Acquirer's Multiple — devil's advocate](https://acquirersmultiple.com/2019/05/successful-investors-need-a-devils-advocate-to-try-to-kill-potential-investment-ideas/).
+- **Crowding/positioning matters as its own axis**, separate from valuation — a cheap, crowded trade and a cheap, unloved trade are different risks. Source: [MSCI — crowding in systematic investing](https://www.msci.com/research-and-insights/blog-post/unraveling-summer-2025s-quant-fund-wobble). We don't have real short-interest data (no free API for it), so I'm using insider activity + factor loadings as the closest real proxy we actually have, and saying so on the panel rather than pretending it's short interest.
+- **Factor decomposition as the shared language for risk**, the way Two Sigma's Venn frames it — this is basically what WW-Factor already does; the fix is using it as an *input* to Distresse's judgement rather than a disconnected panel.
+- ETF holdings (needed for a real Cascade Network) are actually publicly available for free — iShares, State Street and Vanguard all publish daily holdings files with no key required (confirmed via [talsan/ishares](https://github.com/talsan/ishares), an open scraper against iShares' own public endpoint). This is buildable, just not trivial — see Phase 3.
+
+## The honest inventory
+
+Verdict key: **KEEP** (real, working, leave it) · **FIX** (real seam, needs work) · **REBUILD** (currently fake/RNG, real data exists to replace it) · **SCRAP** (remove; no honest path to real without infra that doesn't exist yet) · **RESEARCH** (bigger build, needs a design spike before committing).
+
+### Models (`src/lib/models/impl/`)
+
+| Model | File | Verdict | Why |
+|---|---|---|---|
+| Equity | `equity.ts` | **KEEP** | Already fully real — grounded in Incepta's actual risk/quality/valuation export, throws honestly if Incepta hasn't exported rather than faking a reading. |
+| Distresse | `distresse.ts` | **REBUILD** (in progress) | Currently a seeded-RNG demo. Real evidence already exists elsewhere in the app (Incepta, WW-Factor, WW-Insider, WW-Sentiment, WW-Options) but isn't pulled in — it's the natural home for the "test the idea against every other real model we have" concept you described from Citadel. |
+| Intra/Exitus | `intra-exitus.ts` | **REBUILD** | Currently RNG entry/exit levels. Real OHLCV is available now (Tiingo key is live) — can compute real ATR-based entry zone/stop/targets instead. |
+| Macro Tracker | `macro-tracker.ts` | **REBUILD (partial)** | Currently RNG regime/sentiment. Real regime inputs exist via FRED (rates, yield curve, initial claims) already wired for the commodities ticker — can ground the regime call in those. Per-sector sentiment and the catalyst calendar don't have a free real source; will stay honestly labeled "not available" rather than fake it, per this codebase's own abstention convention. |
+| Your Macro Algo | `_template.ts` | **N/A** | Reserved slot for your own model — untouched. |
+
+### Ticker Hub panels (`src/components/panels/`)
+
+| Panel | Verdict | Why |
+|---|---|---|
+| Factor exposure (WW-Factor) | **KEEP** | Real Fama-French regression, honest confidence/abstention states. |
+| Insider activity (WW-Insider) | **KEEP** | Real SEC EDGAR Form 4 data, now that `SEC_EDGAR_CONTACT` is set. |
+| News sentiment (WW-Sentiment) | **KEEP** | Real FinBERT via Hugging Face now that `HF_API_KEY` is set; honest keyword fallback if the call fails. |
+| Options / implied move | **KEEP, verify** | Wired to Alpha Vantage now that the key is set — first live check is still pending (need to confirm the free tier actually serves `HISTORICAL_OPTIONS`, see Roadblocks). |
+
+### `/visuals` (VIS-01)
+
+| Panel | Verdict | Why |
+|---|---|---|
+| Replay scrubber | **REBUILD** | This is the thing you flagged as broken, and you're right: it drives 2 of 4 panels and silently does nothing to the other 2 (Dislocation Field and Allocator Ribbon are static regardless of the slider — the UI says so in 11px grey text, which nobody reads). A control that visibly does nothing for half the screen is a bug even if it's "documented." |
+| Dislocation Field (WW-GRAPH) | **KEEP + FIX replay** | Real seam, real computation, but only ever shows the single latest snapshot — there's no stored history to scrub through. Fix: append each day's export to a small history log (see "History, done properly" below) instead of overwriting one `latest.json`. |
+| Chaos ribbon (WW-CHAOS) | **FIX** | Real seam exists but only ever returns one live point, so replay does nothing when real data is present, and falls back to an entirely fake sample series when it isn't. Same history-log fix as above. |
+| Cascade Network | **SCRAP for now, RESEARCH to rebuild for real** | 100% fabricated fund names and holdings ("Sample ETF Alpha/Beta/Gamma") — there is no real ETF holdings data anywhere in this app. Real holdings data is genuinely available for free (see research above), but ingesting and maintaining it is its own project, not a quick fix. Pulling the fake version off the default view now so it stops looking like real data; tracked as a Phase 3 build. |
+| Allocator Ribbon | **SCRAP for now — needs your input** | 100% fabricated budgets and utility scores. Building this for real needs an actual history of strategy-level performance/allocations somewhere. Question for you below in Roadblocks — if Whitewater has this in a spreadsheet or broker export, I can ingest it; otherwise this stays conceptual. |
+
+### `/watch`
+
+**KEEP, this is the best-built part of the app.** `checks.ts` and `urgency.ts` are genuinely careful: real WW-WEEKLY quantile bands where covered, an honestly-labeled fallback proxy where not, and an explicit refusal to fake an earnings/event calendar that doesn't exist. Not what you were complaining about (you specifically meant the visuals replay) — flagging it here so it doesn't get scrapped by mistake in a "start from scratch" pass. Its `listScoreHistory` pattern (log real readings over time) is the right model to copy for the visuals history fix above, except it needs to persist to disk (it's in-memory only today, so it resets on every server restart) — folding that fix in too.
+
+### `/stress-test`, `/hub`, `/models`, `/dashboard`, `/war-map`
+
+- `/stress-test` is the UI for Distresse + Intra/Exitus above — fixed automatically once those two are rebuilt.
+- `/hub` (Ticker Hub) — UI is solid; blocked only on the panels above, which are now unblocked.
+- `/models` — just a directory/readme page over the registry; fine as-is.
+- `/war-map` — handled earlier this session (killed a real infinite-refetch bug in `MiniFeed`; the power-plant "dots" are real, working data, just visually unlabeled — small polish item, not urgent).
+- `/dashboard` — need a fresh live check now that the dev-server reload loop is gone (last time I looked at it, it was mid-crash-loop, so I don't fully trust that read yet).
+
+## Infrastructure fix — "history, done properly"
+
+Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably Distresse's own track record over time) need the same missing piece: **a small, durable, append-only history log**, not a database (this app has none) and not in-memory (resets on restart, like `urgency.ts`'s today). Plan: a tiny shared helper that appends one JSON line per reading to a file under `public/data/history/<thing>.jsonl`, capped/rotated so it doesn't grow forever, that any model or panel can call. Building this once, well, unblocks several fixes at once rather than one-off hacking each panel.
+
+## Priority order
+
+1. ~~Kill the war-map `MiniFeed` infinite-refetch bug~~ — done.
+2. **Distresse rebuild** — in progress now. Highest leverage: it's the "test the idea against everything else we've built" model you specifically asked about, and every real evidence source it needs already exists in the app.
+3. **Intra/Exitus rebuild** — real price data is already available; same pattern as Distresse.
+4. **History log infra**, then **Chaos ribbon + Dislocation Field replay fix** using it.
+5. **Macro Tracker partial rebuild** (regime from FRED).
+6. Live-verify Options (Alpha Vantage) and Insider (SEC EDGAR) now that keys are in and the dev server is stable.
+7. Pull the fake Cascade Network + Allocator Ribbon off the default `/visuals` view; write up the real-holdings-ingestion spike as its own tracked item rather than half-building it.
+8. Visual/interface pass on `/visuals` once the fake panels are gone and the real ones are fixed — redesign it around what's actually real rather than four same-sized cards regardless of whether they're real.
+
+## Roadblocks (running log — I note these rather than quietly working around them badly)
+
+- **Alpha Vantage options endpoint on the free tier is still unverified.** Research earlier this session found conflicting signals on whether `HISTORICAL_OPTIONS` works on a free key or is premium-gated. The code is built to honestly distinguish "not on this plan" from "rate limited" from a real read, so whatever your key actually hits will show correctly — but I haven't been able to watch a real live call succeed or fail yet. Will confirm on the next live pass.
+- **Allocator Ribbon needs a real data source I don't have.** If Whitewater has actual strategy-level allocation/P&L history anywhere (even a spreadsheet), tell me and I'll build the real ingestion. Otherwise it stays out of the default view rather than showing fake numbers indefinitely.
+- **Cascade Network (real ETF holdings) is a genuine multi-step build**, not a quick fix — scraping + normalizing + a refresh schedule for holdings across however many ETFs matter to the book. Free data exists; I'm not doing a half version of this quietly. Will scope it properly before touching it again.
+
+## Log
+
+- **2026-09-13** — Plan written after full live + source audit of every screen. Starting Distresse rebuild next.
