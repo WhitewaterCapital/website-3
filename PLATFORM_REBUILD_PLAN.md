@@ -22,6 +22,105 @@ What actual quant shops do to vet a signal or idea before it gets capital, and w
 - **Factor decomposition as the shared language for risk**, the way Two Sigma's Venn frames it — this is basically what WW-Factor already does; the fix is using it as an *input* to Distresse's judgement rather than a disconnected panel.
 - ETF holdings (needed for a real Cascade Network) are actually publicly available for free — iShares, State Street and Vanguard all publish daily holdings files with no key required (confirmed via [talsan/ishares](https://github.com/talsan/ishares), an open scraper against iShares' own public endpoint). This is buildable, just not trivial — see Phase 3.
 
+## Diagnosis: "why is nothing live" (2026-09-13)
+
+You asked directly why nothing looks live and called the graphs "still
+bullshit." Checked every layer rather than guessing:
+
+1. **The dev server wasn't running at all.** `curl localhost:3000` and the
+   built-in browser both failed to connect. Nothing can look live with no
+   server up — this alone explains "nothing is live" independent of
+   everything below.
+2. **Every data export was stale**, checked by reading each engine's own
+   `public/data/*/latest.json` directly:
+   | Export | `as_of` | Age (from 2026-09-13) |
+   |---|---|---|
+   | Weekly | 2026-09-11 | 2 days |
+   | Alloc/State | 2026-09-04 | 9 days |
+   | Incepta (equity) | 2026-08-25 | 19 days |
+   | Intra/Exitus | 2026-08-14 | 1 month (already known/logged) |
+   | Aurora (macro) | 2026-08-07 | 5 weeks |
+   | WW-Factor | 2024-07-12, `synthetic-demo` | stuck on a fixed demo date |
+   | WW-Graph (Dislocation field) | 2019-02-25, `synthetic-demo` | stuck on a fixed demo date |
+3. **The real, fixable cause for WW-Factor and WW-Graph specifically**: both
+   engines gate live-vs-synthetic purely on whether `TIINGO_API_KEY` is set
+   in THAT engine's own `.env` (`factor-engine/.env`, `graph-engine/.env` —
+   confirmed by reading `fac/export.py`/`ge/export.py`'s `build_export()`, a
+   plain `if os.environ.get("TIINGO_API_KEY", "").strip():`, no other
+   condition). Both `.env` files **already have a real 40-character key** —
+   but the on-disk exports are dated today's `generated_at` with a
+   synthetic-demo `as_of`, meaning the export that produced them ran
+   *before* the key was added to that engine's `.env`, and hasn't been
+   re-run since. Re-running `python -m fac.export` / `python -m ge.export`
+   now should flip both to real, live-priced data.
+4. **WW-Chaos is a different, structural problem, not a staleness one.**
+   `chaos-engine/chaos/export.py` has no live path at all — no
+   `TIINGO_API_KEY` branch, nothing. Its own README says why: there is no
+   live intraday data feed wired into this repo (Tiingo's free tier is
+   end-of-day daily bars, not intraday — WW-Chaos needs minute bars). This
+   is the one "graph" that genuinely can't go live from a config fix or a
+   re-run; it needs new data infrastructure (a real intraday feed), which is
+   a separate, bigger, tracked-but-not-started project.
+
+**What I built in response** (see the redesign section below for the rest of
+this pass):
+- **`scripts/sync-all-models.sh`** (`npm run sync:all`) — runs every engine's
+  own export in one command (factor, graph, weekly, intra-exitus, chaos,
+  incepta's ingest+export for its existing AAPL/MSFT/NVDA/KO/F universe, plus
+  the existing `sync:aurora`), each in its own venv, instead of six separate
+  bespoke commands you'd otherwise have to remember. **Run this, then reload
+  the site — that's the actual fix for most of the staleness above.**
+- **A real history log for WW-GRAPH** so the Dislocation Field can eventually
+  replay real history instead of one static point — see the redesign section
+  below for the detail. This only accumulates value once `sync:all` (or
+  `python -m ge.export` directly) runs on 2+ distinct days, so it won't look
+  different today, but every future run now adds to it rather than just
+  overwriting `latest.json`.
+
+## Quant model research (2026-09-13)
+
+You asked for research on quant models worth adding. Read through systematic
+strategy categories (statistical arbitrage/pairs trading, momentum/trend,
+mean reversion, market making, ML-driven, options/vol-arb, HFT, crypto — see
+sources) and cross-checked against academic work specifically on insider
+Form 4 signals, since that's a source this app already has wired in live.
+
+**Honest framing first**: most of this app's "quant models" already exist as
+real engines, just not all surfaced as first-class entries in
+`src/lib/models/registry.ts` the way Distresse/Intra-Exitus/Macro-
+Tracker/Equity are. WW-Weekly is already a real cross-sectional
+momentum/rank model. WW-Graph is already a real stat-arb/pairs-style
+mean-reversion engine (graph-diffusion residuals + OU half-life). WW-Factor
+is already real factor exposure (Fama-French + momentum). Market
+making, HFT, and options vol-arb all need data this app doesn't have (tick
+data, order books, options chains — Alpha Vantage's options endpoint is
+wired but unverified, see Roadblocks) and would be dishonest to fake, so
+they're out of scope, not silently skipped.
+
+**Concrete, buildable-today recommendation: a "Smart Money Momentum" screen.**
+Academic literature on insider Form 4 signals (Alpha Architect's review of
+Form 3/4 "portfolio insider" research, and separate work on combining insider
+ownership with momentum) supports combining insider buying activity with
+price momentum rather than using either alone — momentum and insider
+signals capture different, complementary information, and the combination
+has shown stronger risk-adjusted alpha than either factor in isolation in
+published research. This app already has BOTH real ingredients live:
+WW-Insider's net insider buy/sell direction (SEC EDGAR Form 4, already
+powering Distresse's Positioning/crowding dimension) and WW-Factor's Mom
+factor loading (Fama-French momentum beta, already powering Distresse's
+Factor exposure dimension). A cross-sectional screen ranking WW-Factor's
+fixed universe (AAPL, MSFT, NVDA, JPM, XOM, KO) by insider net-buying ×
+momentum-factor-beta, in the same abstention-honest style as every other
+model here (no fabricated combined "score" without both real inputs present)
+is realistic to build without any new data source. NOT built yet this
+pass — deliberately queued rather than rushed on top of everything else
+today (see Priority order below); it needs its own `ModelMeta`/registry
+entry, its own honesty rules for when either input is missing, and a UI
+panel, done carefully rather than bolted on at the end of an already long
+session.
+
+**Sources**: [Quant Trading Strategies 2026 (Quantt)](https://www.quantt.co.uk/resources/quant-trading-strategies-guide) · [Statistical Arbitrage Guide (Quantt)](https://www.quantt.co.uk/resources/statistical-arbitrage-guide) · [Quantitative Hedge Fund Strategies: The Machine Learning Revolution of 2026 (Rebellion Research)](https://www.rebellionresearch.com/quantitative-hedge-fund-strategies-the-machine-learning-revolution-of-2026) · [Following What Insiders Don't Trade (Alpha Architect)](https://alphaarchitect.com/following-what-insiders-dont-trade/) · [Combining Insider Ownership and Momentum Factors (TEJ)](https://www.tejwin.com/en/insight/stock-selection-factors-research-combining-insider-ownership-and-momentum-factors/)
+
 ## Visual redesign + trade-idea outlook semantics (2026-09-13)
 
 Direct, blunt user feedback after the `/visuals` cleanup above: the previous
@@ -142,7 +241,7 @@ Verdict key: **KEEP** (real, working, leave it) · **FIX** (real seam, needs wor
 | Panel | Verdict | Why |
 |---|---|---|
 | Replay scrubber | **PARTIALLY FIXED (2026-09-13)** | Was driving 2 of 4 panels and silently doing nothing to the other 2. Now that Cascade Network and Allocator Ribbon are removed (see below), it correctly drives what's left — the Chaos ribbon's sample fallback — and the copy on the page says so plainly. Still not scrubbing REAL history yet (see priority #4, the history-log infra) — that's the remaining half of this fix. |
-| Dislocation Field (WW-GRAPH) | **KEEP + FIX replay (pending)** | Real seam, real computation, but only ever shows the single latest snapshot — there's no stored history to scrub through. Fix: append each day's export to a small history log (see "History, done properly" below) instead of overwriting one `latest.json`. |
+| Dislocation Field (WW-GRAPH) | **FIXED (2026-09-13)** | Was: only ever showed the single latest snapshot, no stored history. Now: `python -m ge.export` appends each run to `public/data/graph/history.jsonl`, and `/visuals`' replay scrubber drives the panel through real accumulated history once 2+ days exist (see the diagnosis section above). Needs the export actually run repeatedly (`npm run sync:all`) to have anything to show — the log starts empty. |
 | Chaos ribbon (WW-CHAOS) | **FIX (pending)** | Real seam exists but only ever returns one live point, so replay does nothing when real data is present, and falls back to an entirely fake sample series when it isn't. Same history-log fix as above. |
 | Cascade Network | **REMOVED from default view (2026-09-13)** | 100% fabricated fund names and holdings ("Sample ETF Alpha/Beta/Gamma") — there is no real ETF holdings data anywhere in this app. Pulled off `/visuals` entirely (was showing next to Distresse's newly-real dimensions, which made the contrast worse, not better). Real holdings data is genuinely available for free (see research above); ingesting and maintaining it is still its own project, tracked as a future build, not attempted here. The component file (`CascadeNetwork.tsx`) is now orphaned but NOT deleted — see Roadblocks. |
 | Allocator Ribbon | **REMOVED from default view (2026-09-13) — still needs your input** | 100% fabricated budgets and utility scores, with no real seam behind it at all (unlike `AllocatorPanel.tsx` on `/dashboard`, a different component with a real `getAllocExport()` seam already wired — that one was NOT touched and stays). Pulled off `/visuals`. Building this for real needs an actual history of strategy-level performance/allocations somewhere — see Roadblocks, this question is still open. The component file (`AllocatorRibbon.tsx`) is now orphaned but NOT deleted — see Roadblocks. |
@@ -168,12 +267,14 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
 1. ~~Kill the war-map `MiniFeed` infinite-refetch bug~~ — done, committed (`07ace31`).
 2. ~~**Distresse rebuild**~~ — done, committed (`21d9f8a`). Verified live end to end.
 3. ~~**Intra/Exitus rebuild**~~ — turned out not to need one. Read the engine in full: it's real (see the corrected verdict above). Fixed the real `null`-display bug in `IntraPanel` instead. The one open action here is yours, not mine — see Roadblocks for the one command that refreshes its stale export, which I could not run myself.
-4. **History log infra**, then **Chaos ribbon + Dislocation Field replay fix** using it. (New next-up, since #3 turned out to already be real.)
+4. ~~**History log infra + Dislocation Field replay fix**~~ — done 2026-09-13, scoped to WW-GRAPH (see diagnosis section above). Chaos ribbon still has no equivalent — it needs a real intraday feed WW-Chaos doesn't have at all, not a history log, so it's tracked separately, not folded into this item.
 5. **Macro Tracker partial rebuild** (regime from FRED) — Distresse's own FRED T10Y2Y fetch (`fetchFredLatest` in `impl/distresse.ts`) is a reusable pattern/reference for this; consider factoring it into a shared FRED helper both models call instead of duplicating the fetch+cache logic when this priority is picked up.
 6. Live-verify Options (Alpha Vantage) and Insider (SEC EDGAR) now that keys are in and the dev server is stable. Insider is now PARTIALLY verified as a side effect of testing Distresse live (see Log) — a real SEC EDGAR call for NVDA correctly returned "no signal transactions," but Options/Alpha Vantage itself is still unverified.
 7. ~~Pull the fake Cascade Network + Allocator Ribbon off the default `/visuals` view~~ — done, committed. The real-holdings-ingestion work for a genuine Cascade Network rebuild, and a real data source for Allocator Ribbon, both remain open (see Roadblocks) — tracked, not half-built.
 8. Visual/interface pass on `/visuals` — now a two-panel page instead of four uneven ones. Worth doing properly once #4 (history log) gives both panels something real to scrub through, rather than redesigning around two single-snapshot cards now and redoing it again in a few days. Inherits the new design system's colors/typography automatically (see the redesign section above) but hasn't had its own structural pass yet.
 9. ~~**Dashboard redesign + trade-idea timeframe/catalyst**~~ — done 2026-09-13, out of the numbered order above since it was driven by direct, urgent user feedback rather than the audit's own priority queue. See "Visual redesign + trade-idea outlook semantics" above for the full record.
+10. ~~**"Why is nothing live" diagnosis + sync-all script**~~ — done 2026-09-13, also out of order (direct question). See the diagnosis section above.
+11. **New model: "Smart Money Momentum"** (WW-Insider net buying × WW-Factor Mom beta, cross-sectional, over the existing 6-name universe) — researched and scoped 2026-09-13 (see "Quant model research" above), not yet built. Next up after #5 (Macro Tracker), since both reuse patterns already proven in `distresse.ts` and neither needs a new data source.
 
 ## Roadblocks (running log — I note these rather than quietly working around them badly)
 
@@ -197,6 +298,7 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
   rm ~/Desktop/whitewater-platform/src/components/AllocatorRibbon.tsx
   ```
   Same story for the `.next` cache if you want it cleared (`rm -rf .next && npm run dev`, same command I gave you earlier this session for the reload-loop) — I can't run destructive commands on your machine no matter how I ask, so anything genuinely deletion-shaped is yours to run, always.
+- **WW-Chaos cannot go live with a config fix or a re-run — it needs a real intraday data feed that doesn't exist in this repo at all.** Confirmed by reading `chaos-engine/chaos/export.py` directly: unlike WW-Factor/WW-Graph/WW-Weekly, it has no `TIINGO_API_KEY`-gated live path whatsoever — Tiingo's free tier is end-of-day daily bars, and WW-Chaos's whole premise (detecting intraday dislocation) needs minute-level bars. This is a genuinely bigger, separate build (sourcing and paying for or otherwise acquiring a real intraday feed, then wiring a live path analogous to the other engines') — not attempted here, flagged clearly rather than left ambiguous with the other "just re-run it" staleness issues.
 - **I can't live-verify a UI change in the browser unless `npm run dev` is already running in your own Terminal.** Tried again after this redesign pass — the built-in browser couldn't reach `http://localhost:3000` — meaning the dev server wasn't up at that moment, same as earlier this session. `npx tsc --noEmit` on the real repo came back clean for every file this pass touched (only the 2 pre-existing, unrelated `TickerHubClient.tsx` errors remain), and the change is committed, but nobody has actually looked at the redesigned dashboard rendered yet. Run `cd ~/Desktop/whitewater-platform && npm run dev`, open `http://localhost:3000/dashboard`, and tell me what looks wrong — I'll fix it live rather than guessing from source.
 
 ## Log
@@ -206,3 +308,4 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
 - **2026-09-13** — Started Intra/Exitus rebuild, then reversed course after actually reading `intra-exitus-engine/` in full: it's a real, already-built quant engine, not RNG — corrected the plan's verdict on it rather than rebuilding something that didn't need rebuilding. Fixed the real `null`-display bug this session's own live test had surfaced (`IntraPanel`'s abstain check now uses `Number.isFinite`, survives the NaN→null JSON round-trip). Tried to refresh its month-stale export myself and hit a genuine environment wall on both sandboxes available to me (PyPI blocked on one, Tiingo blocked on the other) — logged with the exact command for you to run on your own machine instead of a half-working workaround. Committed the `IntraPanel.tsx` fix and this plan update.
 - **2026-09-13** — You asked me to update the Desktop folder and delete anything old. Pulled Cascade Network and Allocator Ribbon (100% fabricated, no real seam) off `/visuals` entirely — `VisualsClient.tsx`, `visuals/page.tsx`, and a stale `globals.css` comment updated to match, live-verified the page renders correctly with just the two real-seam panels. Tried to actually delete the two now-orphaned component files (and clear the stale `.next` cache) through the proper sanctioned request — refused outright by an automatic safety classifier, same "[Irreversible Local Destruction]" denial as the `.next`-cache attempt earlier this session. Did not try to route around it. Marked both orphaned files clearly and logged the exact two `rm` commands for you to run yourself, above. `npx tsc --noEmit` and `eslint` on every touched file: clean. Moving to priority #4 (history-log infrastructure for the `/visuals` replay fixes) next.
 - **2026-09-13** — You called the visuals cleanup pass "still gay... ai and childish" and the pass itself "rushed," and asked for a real redesign, an answer to what "long" means re: timeframe/earnings, and a timeframe selector — explicitly "take your time." Did real web research on trading/fintech dashboard design first (see "Visual redesign" section above for what it found and how it was applied), then: replaced the warm cream/coral theme with a cooler terminal-adjacent palette site-wide (`globals.css`, `ui.tsx`, `ModuleNav.tsx` — a `LiveDot` and `Tile` primitive added); rebuilt `/dashboard` into one consolidated page with a live-models status strip (Distresse/Intra-Exitus/Aurora/Incepta/WW-Factor, server-fetched, honestly labeled) and the Stress Test engine embedded directly; and added `IdeaTimeframe`/`IdeaCatalystType` to `TradeIdea` (`types.ts`) with a UI selector (`StressTestClient.tsx`) and real relevance-weighting in Distresse's `evaluate()` (`distresse.ts`) — an earnings-print bet now leans on news/positioning and de-emphasizes valuation/macro regime; defaults reproduce the original flat-average exactly, so no existing caller's output changes. You had separately deleted `AllocatorRibbon.tsx`/`CascadeNetwork.tsx` yourself (confirmed via `git status` before committing) — included in this commit. `npx tsc --noEmit` on the real repo: clean (same 2 pre-existing unrelated `TickerHubClient.tsx` errors, nothing new). Could not live-verify visually — dev server wasn't running in your Terminal at the time — logged in Roadblocks with what to run. Committed (`55b4dde`) to `integration-check`, not pushed to any remote. `/visuals` itself and the other module sub-pages were NOT restructured in this pass (see "What did NOT ship" above) — still open.
+- **2026-09-13** — You asked for quant model research, why nothing is live, said the graphs are still bullshit and you need "new live stuff," and approved going ahead with everything still open. Diagnosed "why nothing is live" by actually reading every export file's `as_of`/`generated_at`/`data_provenance` and both live-gate implementations rather than guessing — full findings in the new "Diagnosis" section above: dev server wasn't running at all; every export was stale; WW-Factor and WW-Graph specifically have real Tiingo keys sitting unused in their `.env` files because they haven't been re-run since the keys were added; WW-Chaos structurally cannot go live without a real intraday feed it doesn't have. Built `scripts/sync-all-models.sh` (`npm run sync:all`) so refreshing every engine is one command instead of six bespoke ones. Built a real history log for WW-GRAPH (`append_history` in `ge/export.py`, `getGraphHistory()` in `graph.ts`, real replay wired into `VisualsClient.tsx`) — priority #4, scoped to the one panel it actually fixes; verified the core append/rotate/same-day-replace logic in isolation (couldn't import the full `ge.export` module here — needs `sklearn`/`pandas` not installed in this sandbox) and confirmed both changed Python files still parse (`py_compile`, `bash -n`). Did real web research on quant strategy categories and insider-signal academic literature (sources in the "Quant model research" section above) and scoped one concrete, buildable-today addition — a "Smart Money Momentum" screen combining WW-Insider's real net-buying signal with WW-Factor's real momentum beta — deliberately NOT built this same pass (queued as priority #11) rather than rushed on top of an already large set of changes today. `npx tsc --noEmit`: clean (same 2 pre-existing errors). Committed (`ba37288`) to `integration-check`. Still open, explicitly not attempted this pass: the Macro Tracker FRED rebuild (priority #5, next up), the Smart Money Momentum model itself (priority #11), and live-verifying any of this in a browser (dev server still wasn't reachable when checked).
