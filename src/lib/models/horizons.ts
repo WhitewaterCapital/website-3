@@ -69,6 +69,34 @@ export const HORIZON_REGISTRY: HorizonEntry[] = [
     band: "unspecified",
     note: "Reserved slot — declare its real horizon here once it's built; until then it combines with nothing.",
   },
+  {
+    modelId: "ww-sentiment",
+    band: "1min-4h",
+    note:
+      "FinBERT-scored recent news headlines (src/lib/sentiment/) — registered here for honest transparency, " +
+      "NOT because it feeds conviction.ts's composite (it deliberately does not; see TickerHubClient.tsx's " +
+      "SentimentPanel comment). Unlike macro-tracker's '1-3m' entry above — a fast DAILY READ of a slower " +
+      "underlying REGIME, which is exactly why it's safe to blend into a slower composite — a news-sentiment " +
+      "read has no such gap between the read's speed and the phenomenon's speed: both the headlines and the " +
+      "mood they carry are equally fast-moving and can flip within hours as new stories land. Banded at the " +
+      "registry's fastest tier on purpose. NOTE for future maintainers: '1min-4h' is HORIZON_ORDER-adjacent to " +
+      "'1-10d' (intra-exitus), so canCombine('ww-sentiment','intra-exitus') is technically true by the default " +
+      "adjacency rule below — harmless today because nothing in this codebase calls canCombine/assertCombinable " +
+      "yet, but worth a second look before anything ever does.",
+  },
+  {
+    modelId: "ww-insider",
+    band: "1-3m",
+    note:
+      "SEC Form 4 net insider open-market buy/sell direction (conviction.ts's INSIDER_ACTIVITY_SLOT / " +
+      "edgar-sources.js). Leading but noisy: the insider-trading literature (Lakonishok & Lee 2001; " +
+      "Jeng, Metrick & Zeckhauser 2003) finds most of a Form 4 cluster's predictive power realizes over " +
+      "the following few months, not the next few days and not the next few years — materially slower " +
+      "than intra-exitus's 1-10d tactical window, materially faster than a structural regime call. \"1-3m\" " +
+      "is the closest declared band to that empirical window (shared with \"equity\", whose quarterly " +
+      "reporting cadence is a different but similarly-paced mechanism) rather than a bespoke band invented " +
+      "for one slot.",
+  },
 ];
 
 // Pairs of bands documented as combinable even though they are not the same

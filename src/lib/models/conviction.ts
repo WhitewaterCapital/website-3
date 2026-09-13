@@ -112,6 +112,34 @@ export const GRAPH_RESIDUAL_SLOT = "ww-graph"; // GraphResidual (graph-export.ts
 export const CASCADE_EXPOSURE_SLOT = "ww-cascade"; // ChaosReading cascade exposure (chaos-export.ts) — intraday-to-multiday
 
 // ---------------------------------------------------------------------------
+// IMP-22 — SEC Form 4 insider-activity slot.
+//
+// Unlike GRAPH_RESIDUAL_SLOT / CASCADE_EXPOSURE_SLOT above (still placeholder
+// reservations — nothing produces a real ConvictionSlotInput for them yet),
+// this slot IS wired to a real, live, keyless data source the same day it
+// was reserved: lib/whitewatch-data/edgar-sources.js pulls an issuer's real
+// recent Form 4 (insider transaction) filings straight from SEC EDGAR
+// (data.sec.gov / www.sec.gov, no API key — none exists) and
+// app/api/models/insider/route.ts exposes a net buy/sell read per ticker.
+// See TickerHubClient.tsx's insiderConvictionSlot() for the mapping from
+// that read's -1..+1 dollar-weighted net direction to this slot's -100..100
+// score, and its confidence, based on how many open-market buy/sell
+// transactions the read rests on (2 trades reads as far less confident than
+// 20 — see edgar-sources.js's CONFIDENCE_SATURATION_COUNT).
+//
+// It follows this module's existing reserved-slot convention regardless:
+// registered here by name, capped by the exact same MAX_SINGLE_MODEL_SWING
+// mechanism as every other slot (a handful of Form 4s — sometimes one
+// executive's own pre-scheduled 10b5-1 plan, not independent evidence —
+// must never on its own flip a structural conviction call), and never
+// contributed at all (no slot, not a fabricated zero) when the ticker
+// couldn't be resolved to a CIK, EDGAR was unreachable, or SEC had zero
+// open-market Form 4 activity for it in the window — all three are honest,
+// distinguishable "no signal" outcomes, not a score.
+// ---------------------------------------------------------------------------
+export const INSIDER_ACTIVITY_SLOT = "ww-insider"; // Form 4 net insider buy/sell (edgar-sources.js) — "1-3m" horizon, see horizons.ts
+
+// ---------------------------------------------------------------------------
 // The cap.
 //
 // No single slot may move the composite by more than this many points, in

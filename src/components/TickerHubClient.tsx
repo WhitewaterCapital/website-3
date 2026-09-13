@@ -2,22 +2,29 @@
 
 // TICKER HUB — one search bar, every model's read on the ticker in one place.
 // Enter a commodity, equity, or FX ticker and this runs the real engines that
-// apply to it (Distresse + Entry & Exit always; WW-Weekly's rank and Incepta's
-// equity fundamentals when the ticker is actually covered by them) and lays
-// the results out as one breakdown. A second ticker turns it into a
-// side-by-side comparison. This is additive — the individual model pages
+// apply to it (Distresse + Entry & Exit always; WW-Weekly's rank, Incepta's
+// equity fundamentals, and WW-Insider's SEC Form 4 read when the ticker is
+// actually covered by them) and lays the results out as one breakdown. A
+// second ticker turns it into a side-by-side comparison. This is additive —
+// the individual model pages
 // (Stress Test, Entry & Exit, Weekly, Sentiment) are unchanged and still work
 // on their own; this is the "give me everything on this name" front door.
 
 import { useState } from "react";
 import { Card, Badge, Stat } from "@/components/ui";
-import { DistressePanel, IntraPanel, SecurityCard } from "@/components/panels/ModelPanels";
+import { DistressePanel, IntraPanel, OptionsPanel, InsiderPanel, SecurityCard } from "@/components/panels/ModelPanels";
+import { FactorPanel } from "@/components/panels/FactorPanel";
 import type { Instrument, StressVerdict, EntryExitPlan } from "@/lib/models/types";
 import type { WeeklyForecast } from "@/lib/models/weekly-export";
 import type { SecurityAnalysis } from "@/lib/models/incepta-export";
+import type { OptionsSummary } from "@/lib/models/options-export";
+import type { FactorExposure, FactorDataProvenance } from "@/lib/models/factor-export";
+import type { TickerSentimentResult } from "@/lib/sentiment/types";
+import { THIRTEEN_F_GAP_REASON, type InsiderReading } from "@/lib/models/insider-export";
 import {
   computeConviction,
   WEEKLY_FORECAST_SLOT,
+  INSIDER_ACTIVITY_SLOT,
   MAX_SINGLE_MODEL_SWING,
   type ConvictionSlotInput,
 } from "@/lib/models/conviction";
@@ -48,6 +55,10 @@ type Breakdown = {
   intra?: EntryExitPlan;
   weekly: { covered: boolean; universeSize: number; forecast: WeeklyForecast | null } | null;
   equity: { attempted: boolean; status: "loading" | "ok" | "unavailable"; security?: SecurityAnalysis | null; message?: string };
+  sentiment: TickerSentimentResult | null;
+  options: OptionsSummary | null;
+  factor: { covered: boolean; universeSize: number; dataProvenance: FactorDataProvenance; exposure: FactorExposure | null } | null;
+  insider: InsiderReading | null;
 };
 
 async function fetchWeekly(ticker: string): Promise<Breakdown["weekly"]> {
@@ -67,6 +78,86 @@ async function fetchWeekly(ticker: string): Promise<Breakdown["weekly"]> {
   }
 }
 
+// Company name (when known — Incepta's SecurityAnalysis.name, equities
+// only) widens the news search so a headline naming the company but not the
+// ticker symbol is still found — see lib/sentiment/headlines.ts::buildQuery.
+// Never blocks the breakdown: a failed/slow sentiment fetch degrades to
+// `null`, same as fetchWeekly above, rather than failing the whole lookup.
+async function fetchSentiment(ticker: string, companyName: string | null): Promise<TickerSentimentResult | null> {
+  try {
+    const qs = new URLSearchParams({ ticker: ticker.trim().toUpperCase() });
+    if (companyName) qs.set("name", companyName);
+    const res = await fetch(`/api/models/sentiment?${qs.toString()}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as TickerSentimentResult;
+  } catch {
+    return null;
+  }
+}
+
+// WW-FACTOR's fixed-universe coverage check — same shape as fetchWeekly
+// above (a small, static export the site reads through /api/models/factor).
+// Degrades to `null` on a network hiccup exactly like fetchWeekly/
+// fetchSentiment/fetchOptions.
+async function fetchFactor(ticker: string): Promise<Breakdown["factor"]> {
+  try {
+    const res = await fetch(`/api/models/factor?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (!data.synced) return null;
+    return {
+      covered: Boolean(data.covered),
+      universeSize: Number(data.universeSize) || 0,
+      dataProvenance: data.dataProvenance ?? "synthetic-demo",
+      exposure: data.exposure ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Real Tradier-sandbox options/IV read — see /api/models/options and
+// lib/whitewatch-data/tradier-sandbox.js for the full source verification
+// writeup. Degrades to `null` on a network hiccup exactly like fetchWeekly/
+// fetchSentiment above; a genuine "no options for this ticker" or "not
+// configured" state is NOT this — those come back as a normal 200 with a
+// `status` field, which OptionsPanel renders honestly (see that component).
+async function fetchOptions(ticker: string): Promise<OptionsSummary | null> {
+  try {
+    const res = await fetch(`/api/models/options?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as OptionsSummary;
+  } catch {
+    return null;
+  }
+}
+
+// Live SEC EDGAR Form 4 insider-activity read — see /api/models/insider and
+// lib/whitewatch-data/edgar-sources.js for the full source verification
+// writeup. Only attempted for equity tickers (Form 4 only exists for SEC-
+// registered equity issuers — same gating as equityPromise below). Degrades
+// to `null` on a network hiccup exactly like fetchWeekly/fetchSentiment/
+// fetchOptions above — that is a DIFFERENT thing from the route's own
+// status:"not_found"/"unreachable" (a successful response that itself
+// reports SEC couldn't be reached for this ticker); InsiderPanel and
+// missingSignalReasons below both know how to render/explain that inner
+// status. `null` here means this app's own /api/models/insider route
+// couldn't be reached at all.
+async function fetchInsider(ticker: string): Promise<InsiderReading | null> {
+  try {
+    const res = await fetch(`/api/models/insider?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as InsiderReading;
+  } catch {
+    return null;
+  }
+}
+
 async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: Instrument): Promise<Breakdown> {
   const stressPromise = fetch("/api/models/stress", {
     method: "POST",
@@ -77,6 +168,22 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
     .catch(() => null);
 
   const weeklyPromise = fetchWeekly(ticker);
+
+  // Fired in parallel with everything else, ticker-only (no company name —
+  // that would mean waiting on equityPromise first, which would slow down
+  // every lookup just to widen a news search). See fetchSentiment's own
+  // comment: a company name is a nice-to-have query widener, not required.
+  const sentimentPromise = fetchSentiment(ticker, null);
+
+  const optionsPromise = fetchOptions(ticker);
+
+  const factorPromise = fetchFactor(ticker);
+
+  // Form 4 insider filings only exist for SEC-registered equity issuers —
+  // same asset-class gating as equityPromise, avoids a doomed lookup
+  // (ticker directory just won't have "CL" or "EURUSD" in it) for a
+  // commodity/FX ticker.
+  const insiderPromise = assetClass === "equity" ? fetchInsider(ticker) : Promise.resolve(null);
 
   const equityPromise =
     assetClass === "equity"
@@ -89,7 +196,15 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
           .catch(() => ({ status: "unavailable", message: "Couldn't reach the equity engine." }))
       : Promise.resolve(null);
 
-  const [stressRes, weekly, equityRes] = await Promise.all([stressPromise, weeklyPromise, equityPromise]);
+  const [stressRes, weekly, equityRes, sentiment, options, factor, insider] = await Promise.all([
+    stressPromise,
+    weeklyPromise,
+    equityPromise,
+    sentimentPromise,
+    optionsPromise,
+    factorPromise,
+    insiderPromise,
+  ]);
 
   return {
     ticker: ticker.toUpperCase(),
@@ -106,6 +221,10 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
       security: equityRes?.status === "ok" ? equityRes.security : null,
       message: equityRes?.message,
     },
+    sentiment,
+    options,
+    factor,
+    insider,
   };
 }
 
@@ -251,6 +370,12 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
 
           <WeeklyCard weekly={r.weekly} />
 
+          <FactorCard factor={r.factor} ticker={r.ticker} />
+
+          {r.options && <OptionsPanel o={r.options} p={r.intra} />}
+
+          <SentimentPanel sentiment={r.sentiment} />
+
           {r.assetClass === "equity" ? (
             <Card title="Equity fundamentals">
               {r.equity.status === "ok" && r.equity.security ? (
@@ -267,6 +392,27 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
               <p className="text-sm text-muted">
                 Not applicable — Incepta&apos;s fundamentals (SEC filings, valuation, quality) only cover equities. Marked as{" "}
                 {r.assetClass} here.
+              </p>
+            </Card>
+          )}
+
+          {r.assetClass === "equity" ? (
+            <InsiderPanel
+              r={
+                r.insider ?? {
+                  status: "unreachable",
+                  ticker: r.ticker,
+                  message: "Couldn't reach the insider-activity engine for this ticker.",
+                  thirteenF: { supported: false, reason: THIRTEEN_F_GAP_REASON },
+                  generatedBy: "SEC EDGAR Form 4 (data.sec.gov / www.sec.gov) — live, keyless",
+                }
+              }
+            />
+          ) : (
+            <Card title="Insider activity (WW-Insider)">
+              <p className="text-sm text-muted">
+                Not applicable — SEC Form 4 insider-transaction filings only exist for SEC-registered equity issuers.
+                Marked as {r.assetClass} here.
               </p>
             </Card>
           )}
@@ -311,6 +457,19 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
 //   this "a low-predictability, research-grade RANK signal, not price
 //   targets".
 //
+// Also deliberately left out: the Tradier-sandbox options/implied-volatility
+// read (OptionsPanel, below WeeklyCard) — a different reason from WW-Graph/
+// WW-Cascade's "no live data yet". Here the data IS live and real, but
+// ATM implied vol / expected-move is a MAGNITUDE, not a directional opinion
+// (a straddle price can't be negative) — conviction.ts's ConvictionSlotInput
+// documents `score` as a SIGNED directional/quality read, and there is no
+// honest sign to assign "the market expects a ±6% move." Put/call open
+// interest ratio has a loose directional flavor but is a noisy, contested
+// heuristic (elevated put OI is equally explained by covered-call writers,
+// protective hedgers, or market-maker inventory) — not a vetted opinion on
+// the level of Distresse's stress test or Incepta's quality composite. Full
+// reasoning lives on OptionsPanel itself (components/panels/ModelPanels.tsx).
+//
 // Incepta equity slot (modelId "equity" — the SAME id equity.ts's
 //   ModelMeta.id and horizons.ts's HORIZON_REGISTRY use, so the real "1-3m"
 //   horizon band shows up in the breakdown below instead of "unspecified"):
@@ -319,6 +478,26 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
 //   score = ((piotroski_f - 4.5) / 4.5) * 100 — Piotroski F (0..9) is the
 //   bounded quality composite SecurityCard already headlines.
 //   confidence follows Incepta's own label: high 0.8, medium 0.55, low 0.3.
+//
+// WW-Insider slot (INSIDER_ACTIVITY_SLOT, reserved by conviction.ts — see
+//   that file's IMP-22 comment): added only for an equity ticker where
+//   r.insider.status is "ok" AND summary.signalTransactionCount > 0 — i.e.
+//   SEC EDGAR was actually reached, the ticker resolved to a real CIK, AND
+//   there was at least one real open-market buy/sell Form 4 transaction to
+//   base a score on. Per this task's explicit requirement: a ticker with
+//   zero coverage (not_found), an unreachable EDGAR, or zero signal
+//   transactions in the window is a MISSING signal (see
+//   missingSignalReasons below), never a fabricated zero-conviction slot.
+//   score = edgar-sources.js's summarizeInsiderActivity().score — already a
+//   -100..100 dollar-weighted net buy(+)/sell(-) direction over the
+//   open-market (P/S) transactions in the window, so no remapping is done
+//   here (unlike the linear rescales above) — the underlying number is
+//   already on conviction.ts's documented slot scale.
+//   confidence = that same summary's confidence, which saturates only once
+//   the read rests on CONFIDENCE_SATURATION_COUNT (10) independent P/S
+//   transactions — see edgar-sources.js for why 2 trades from one insider's
+//   own pre-scheduled plan must carry far less weight than a dozen
+//   independent ones.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const EQUITY_CONVICTION_SLOT = "equity"; // matches equity.ts's ModelMeta.id / horizons.ts's HORIZON_REGISTRY entry
@@ -347,13 +526,25 @@ function equityConvictionSlot(r: Breakdown): ConvictionSlotInput | null {
   };
 }
 
-// Honest accounting of which of the (up to 3) possible signals actually fed
+function insiderConvictionSlot(r: Breakdown): ConvictionSlotInput | null {
+  if (r.assetClass !== "equity" || !r.insider || r.insider.status !== "ok" || !r.insider.summary) return null;
+  const { score, confidence, signalTransactionCount } = r.insider.summary;
+  // score is null (edgar-sources.js's own convention) and
+  // signalTransactionCount is 0 together whenever there were zero
+  // open-market P/S transactions — that's "no signal", not "score of 0";
+  // never contribute a fabricated neutral slot for it.
+  if (score == null || signalTransactionCount === 0) return null;
+  return { modelId: INSIDER_ACTIVITY_SLOT, score, confidence };
+}
+
+// Honest accounting of which of the (up to 4) possible signals actually fed
 // the composite for THIS ticker, and why any that didn't are missing — an
-// equity ticker has 3 possible signals (Distresse + WW-Weekly + Incepta), a
-// commodity/FX ticker has 2 (Incepta doesn't cover non-equities at all, so
-// it is never counted as "possible" there, matching the "Not applicable"
-// card already shown below for that case).
-function missingSignalReasons(r: Breakdown, hasWeekly: boolean, hasEquity: boolean): string[] {
+// equity ticker has 4 possible signals (Distresse + WW-Weekly + Incepta +
+// WW-Insider), a commodity/FX ticker has 2 (neither Incepta nor WW-Insider
+// cover non-equities at all, so neither is ever counted as "possible"
+// there, matching the "Not applicable" cards already shown below for that
+// case).
+function missingSignalReasons(r: Breakdown, hasWeekly: boolean, hasEquity: boolean, hasInsider: boolean): string[] {
   const reasons: string[] = [];
   if (!hasWeekly) {
     if (!r.weekly) reasons.push("WW-Weekly hasn't exported yet.");
@@ -368,6 +559,12 @@ function missingSignalReasons(r: Breakdown, hasWeekly: boolean, hasEquity: boole
     } else {
       reasons.push("Incepta has no Piotroski quality composite for this ticker.");
     }
+  }
+  if (r.assetClass === "equity" && !hasInsider) {
+    if (!r.insider) reasons.push("Couldn't reach the insider-activity engine for this ticker.");
+    else if (r.insider.status === "not_found") reasons.push(r.insider.message ?? `SEC has no CIK for ${r.ticker}.`);
+    else if (r.insider.status === "unreachable") reasons.push(r.insider.message ?? "SEC EDGAR was unreachable for this ticker.");
+    else reasons.push(`No open-market insider buying/selling for ${r.ticker} in the last ${r.insider.windowDays} days.`);
   }
   return reasons;
 }
@@ -432,6 +629,7 @@ const leanTone = (bias: Lean["bias"]) => (bias === "long" ? "up" : bias === "sho
 function slotLabel(modelId: string): string {
   if (modelId === WEEKLY_FORECAST_SLOT) return "WW-Weekly";
   if (modelId === EQUITY_CONVICTION_SLOT) return "Incepta";
+  if (modelId === INSIDER_ACTIVITY_SLOT) return "WW-Insider";
   return modelId;
 }
 
@@ -443,6 +641,10 @@ function slotDetail(modelId: string, r: Breakdown): string {
   if (modelId === EQUITY_CONVICTION_SLOT) {
     const q = r.equity.security?.quality;
     return q?.piotroski_f == null ? "Piotroski n/a" : `Piotroski ${q.piotroski_f}/${q.piotroski_max ?? 9}`;
+  }
+  if (modelId === INSIDER_ACTIVITY_SLOT) {
+    const s = r.insider?.summary;
+    return s == null ? "no signal txns" : `${s.signalTransactionCount} txns, ${s.distinctInsiders} insider${s.distinctInsiders === 1 ? "" : "s"}`;
   }
   return "";
 }
@@ -458,14 +660,15 @@ function VerdictCard({ r }: { r: Breakdown }) {
 
   const wSlot = weeklyConvictionSlot(r.weekly);
   const eSlot = equityConvictionSlot(r);
-  const slots = [wSlot, eSlot].filter((s): s is ConvictionSlotInput => s !== null);
+  const iSlot = insiderConvictionSlot(r);
+  const slots = [wSlot, eSlot, iSlot].filter((s): s is ConvictionSlotInput => s !== null);
 
   const result = computeConviction(baseScore, baseConfidence, slots);
   const lean = directionalLean(r, result.composite);
 
-  const possible = r.assetClass === "equity" ? 3 : 2; // Distresse + WW-Weekly (+ Incepta for equities only)
-  const available = 1 + (wSlot ? 1 : 0) + (eSlot ? 1 : 0);
-  const missing = missingSignalReasons(r, Boolean(wSlot), Boolean(eSlot));
+  const possible = r.assetClass === "equity" ? 4 : 2; // Distresse + WW-Weekly (+ Incepta + WW-Insider for equities only)
+  const available = 1 + (wSlot ? 1 : 0) + (eSlot ? 1 : 0) + (iSlot ? 1 : 0);
+  const missing = missingSignalReasons(r, Boolean(wSlot), Boolean(eSlot), Boolean(iSlot));
 
   const gaugeTone = result.composite >= LEAN_FULL_THRESHOLD ? "up" : result.composite < LEAN_TENTATIVE_THRESHOLD ? "down" : "neutral";
 
@@ -477,8 +680,9 @@ function VerdictCard({ r }: { r: Breakdown }) {
         <div className="space-y-3">
           <p className="text-sm text-foreground/80">
             {Math.round(result.composite)}/100 blends Distresse&apos;s stress-test conviction (currently rated &quot;{v.rating}
-            &quot;) with WW-Weekly&apos;s rank and Incepta&apos;s quality read wherever each is actually available for{" "}
-            {r.ticker}. It&apos;s a &quot;how much do the available models agree&quot; reading on a 0-100 scale — not a
+            &quot;) with WW-Weekly&apos;s rank, Incepta&apos;s quality read, and WW-Insider&apos;s SEC Form 4 read
+            wherever each is actually available for {r.ticker}. It&apos;s a &quot;how much do the available models
+            agree&quot; reading on a 0-100 scale — not a
             probability of any specific price move, and not a buy/sell instruction on its own.
           </p>
 
@@ -553,6 +757,189 @@ function WeeklyCard({ weekly }: { weekly: Breakdown["weekly"] }) {
       ) : (
         <p className="text-sm text-muted">Covered by WW-Weekly, but no forecast row this run.</p>
       )}
+    </Card>
+  );
+}
+
+// WW-FACTOR — Fama-French factor exposure. Same "not in the research
+// universe" honesty shape as WeeklyCard above (a small, fixed, static
+// export — see factor-engine/README.md's "Why a small fixed universe, not
+// 'any ticker on demand'"). NOT a conviction.ts slot: see
+// components/panels/FactorPanel.tsx's own top-of-file comment for the full
+// reasoning — a factor beta describes a style tilt, not a direction.
+function FactorCard({ factor, ticker }: { factor: Breakdown["factor"]; ticker: string }) {
+  if (!factor) {
+    return (
+      <Card title="Factor exposure (Fama-French)">
+        <p className="text-sm text-muted">WW-Factor hasn&apos;t exported yet.</p>
+      </Card>
+    );
+  }
+  if (!factor.covered) {
+    return (
+      <Card title="Factor exposure (Fama-French)">
+        <p className="text-sm text-muted">
+          Not in WW-Factor&apos;s {factor.universeSize}-name research universe — no factor-exposure read for {ticker}
+          . See factor-engine/README.md for why this universe is small and fixed today.
+        </p>
+      </Card>
+    );
+  }
+  if (!factor.exposure) {
+    return (
+      <Card title="Factor exposure (Fama-French)">
+        <p className="text-sm text-muted">Covered by WW-Factor, but no exposure row this run.</p>
+      </Card>
+    );
+  }
+  return <FactorPanel exposure={factor.exposure} dataProvenance={factor.dataProvenance} />;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WW-SENTIMENT — real headlines (Google News RSS), each individually scored
+// by FinBERT (ProsusAI/finbert) via /api/models/sentiment. See that route
+// and src/lib/sentiment/finbert.ts for the full verification writeup on the
+// model/API and what is and isn't confirmed live from this codebase.
+//
+// WHY THIS PANEL IS STANDALONE, NOT A conviction.ts SLOT — the honest call
+// this task asked for, made explicitly rather than by omission:
+//
+// conviction.ts already blends one clearly faster-than-structural signal in
+// (WEEKLY_FORECAST_SLOT, "1w" horizon) alongside Distresse and Incepta. The
+// reason that one is safe to blend is documented in this file's own
+// weeklyConvictionSlot() comment and in weekly-engine/README.md: it is a
+// BACKTESTED model with a measured, capped confidence (0.25-0.45) tied to
+// its own known predictive power (rank IC), and macro-tracker's horizons.ts
+// entry makes the same shape of argument — "the read itself is fast but the
+// regime it describes moves on a monthly-to-quarterly cadence."
+//
+// News-headline sentiment does not have either property:
+//   1. NO VALIDATED PREDICTIVE POWER. Unlike WW-Weekly, nothing in this
+//      codebase has backtested whether recent headline sentiment on a name
+//      predicts anything about it going forward. Wiring an unvalidated
+//      signal into a composite that's meant to represent a multi-year-
+//      relevant read (conviction.ts's own header comment) would be giving
+//      it structural weight it hasn't earned.
+//   2. NO SPEED GAP TO EXPLOIT. Macro's daily read works because the
+//      REGIME it describes is slow even though the read is fast. A batch of
+//      recent headlines has no such underlying slow phenomenon — the mood
+//      IS the fast thing, not a fast proxy for something slower. horizons.ts
+//      bands this at "1min-4h" (see that file's ww-sentiment entry) for
+//      exactly this reason.
+//   3. SMALL-SAMPLE FRAGILITY. A single extreme headline ("CEO resigns amid
+//      fraud probe") can dominate a 2-3 headline batch for a thinly-covered
+//      name. aggregate.ts's confidence formula discounts this correctly for
+//      READING the number, but conviction.ts's cap mechanics were designed
+//      and tuned (MAX_SINGLE_MODEL_SWING = 8, see that file's own comment)
+//      around models like WW-Weekly and Incepta, not around a signal whose
+//      noise floor is "one bad headline."
+//
+// This is the same kind of call already made once in this file — WW-Graph
+// and WW-Cascade are deliberately left out of VerdictCard (see that card's
+// own comment above) because there's no live data to back them honestly.
+// Here the data IS live and real; what's missing is validated evidence that
+// it belongs in a STRUCTURAL score. So: shown in full, individually
+// attributed, right below the Verdict — never folded into its number.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const sentimentLabelTone = {
+  positive: "up",
+  negative: "down",
+  neutral: "neutral",
+  unavailable: "warn",
+} as const;
+
+function formatHeadlineDate(iso: string | null): string {
+  if (!iso) return "date unknown";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "date unknown";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function SentimentPanel({ sentiment }: { sentiment: Breakdown["sentiment"] }) {
+  if (!sentiment) {
+    return (
+      <Card title="News sentiment (WW-Sentiment)">
+        <p className="text-sm text-muted">Couldn&apos;t reach the sentiment engine for this ticker.</p>
+      </Card>
+    );
+  }
+
+  const { aggregate, headlines } = sentiment;
+  const gaugeTone = aggregate.score == null ? "neutral" : aggregate.score > 10 ? "up" : aggregate.score < -10 ? "down" : "neutral";
+
+  return (
+    <Card
+      title="News sentiment (WW-Sentiment)"
+      action={
+        <Badge tone={aggregate.method === "finbert" ? "up" : aggregate.method === "keyword-fallback" ? "warn" : "neutral"}>
+          {aggregate.method === "finbert"
+            ? "FinBERT"
+            : aggregate.method === "mixed"
+              ? "FinBERT + fallback"
+              : aggregate.method === "keyword-fallback"
+                ? "Keyword fallback"
+                : "No read"}
+        </Badge>
+      }
+    >
+      {!sentiment.finbertConfigured && (
+        <div className="mb-4 border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          ⚠ <strong>HF_API_KEY not set.</strong> Headlines below are shown unscored ("sentiment scoring
+          unavailable") rather than a guessed or keyword-based number pretending to be a real model read. See
+          .env.local.example for how to get a free Hugging Face token and what it costs.
+        </div>
+      )}
+
+      {aggregate.abstained ? (
+        <p className="text-sm text-muted">{aggregate.abstainReason}</p>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
+          <Stat
+            label="Sentiment read"
+            value={aggregate.score == null ? "—" : `${aggregate.score > 0 ? "+" : ""}${aggregate.score.toFixed(0)}`}
+            sub="-100 (bearish) .. +100 (bullish)"
+            tone={gaugeTone}
+          />
+          <div className="space-y-2 text-sm text-foreground/80">
+            <p>
+              Confidence {Math.round(aggregate.confidence * 100)}% from {aggregate.nScored} scored headline
+              {aggregate.nScored === 1 ? "" : "s"} of {aggregate.n} found in the last 14 days — deliberately scaled
+              down for a thin sample (see aggregate.ts): a 2-headline read never carries the confidence a 20-headline
+              read does, however extreme either one looks.
+            </p>
+            <p className="text-xs text-muted">
+              {aggregate.counts.positive} positive · {aggregate.counts.negative} negative · {aggregate.counts.neutral}{" "}
+              neutral{aggregate.counts.unavailable > 0 ? ` · ${aggregate.counts.unavailable} unscored` : ""}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {headlines.length > 0 && (
+        <ul className="mt-5 space-y-2 border-t border-hairline pt-4">
+          {headlines.map((h) => (
+            <li key={h.id} className="flex flex-wrap items-start justify-between gap-2 text-sm">
+              <a href={h.link} target="_blank" rel="noreferrer" className="flex-1 text-foreground/90 hover:underline">
+                {h.title}
+              </a>
+              <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
+                {h.source} · {formatHeadlineDate(h.publishedAt)}
+                <Badge tone={sentimentLabelTone[h.sentiment.label]}>
+                  {h.sentiment.label}
+                  {h.sentiment.method === "keyword-fallback" ? " (fallback)" : ""}
+                </Badge>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mt-4 text-[11px] text-muted">
+        Not included in the Verdict composite above — see this component&apos;s source comment for the full reasoning
+        (short version: no backtested predictive power and a decay speed of hours, not weeks, unlike WW-Weekly's
+        capped conviction slot).
+      </p>
     </Card>
   );
 }

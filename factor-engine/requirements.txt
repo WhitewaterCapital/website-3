@@ -1,0 +1,13 @@
+# WW-FACTOR engine — dependencies.
+
+pandas>=2.0
+numpy>=1.24
+requests>=2.31        # fac/adapters/prices_tiingo.py (live path, gated on TIINGO_API_KEY)
+                       # and fac/adapters/french_factors.py (no key needed)
+
+# Test runner.
+pytest>=7.4
+
+# NOT used: statsmodels, scikit-learn. See fac/regression.py's module
+# docstring for why the OLS factor regression is hand-rolled closed-form
+# numpy rather than a heavier stats dependency.

@@ -7,10 +7,12 @@
 // place a ticker's results show up.
 
 import { useState } from "react";
-import { Card, Badge } from "@/components/ui";
+import { Card, Badge, Stat } from "@/components/ui";
 import { ScoreBar } from "@/components/ScoreBar";
 import type { StressVerdict, EntryExitPlan } from "@/lib/models/types";
 import type { SecurityAnalysis } from "@/lib/models/incepta-export";
+import type { OptionsSummary } from "@/lib/models/options-export";
+import type { InsiderReading, InsiderTransaction } from "@/lib/models/insider-export";
 
 const dash = "—";
 const ratingTone = { go: "up", conditional: "warn", "no-go": "down" } as const;
@@ -146,6 +148,109 @@ export function IntraPanel({ p }: { p: EntryExitPlan }) {
       <p className="mt-4 text-[11px] text-muted">{p.generatedBy}</p>
     </Card>
   );
+}
+
+// ── Options / implied volatility — Tradier sandbox read ─────────────────────
+// This panel is DELIBERATELY separate from Entry & Exit and never merged
+// into it (see this task's spec, and TickerHubClient's VerdictCard comment
+// block for why it also never feeds conviction.ts): Entry & Exit's
+// stop/targets are this platform's own price-based levels; the numbers here
+// are what the OPTIONS MARKET itself is pricing in, as complementary
+// context. `p` (Entry & Exit's plan) is optional and used ONLY to print one
+// extra sentence comparing the stop distance to the options-implied move —
+// it never changes any number this panel shows on its own.
+export function OptionsPanel({ o, p }: { o: OptionsSummary; p?: EntryExitPlan }) {
+  return (
+    <Card title="Options market — implied move" action={<StatusBadge status={o.status} />}>
+      {/* Always-visible caveat — per this task's requirement that a member
+         sizing a real trade off this panel must see the delay/personal-use
+         caveat WHERE THEY'D READ IT, not buried in a code comment. Shown
+         regardless of status, including the abstention states, since even a
+         "no data" or "not applicable" card is still labeled Tradier
+         sandbox. */}
+      <div className="mb-4 border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-800 dark:text-sky-300">
+        Tradier SANDBOX data — quotes are <strong>15 minutes delayed</strong>, greeks/IV (via ORATS) can lag up to an
+        hour on top of that, and per Tradier&apos;s terms this feed is for the fund&apos;s own personal/internal use
+        only, never for redistribution. Do not use this alone to size a live trade.
+      </div>
+
+      {o.status === "not_configured" && (
+        <p className="text-sm text-muted">{o.reason ?? "Tradier sandbox isn't configured."}</p>
+      )}
+
+      {o.status === "not_applicable" && (
+        <p className="text-sm text-muted">{o.reason ?? `No listed options for ${o.ticker}.`}</p>
+      )}
+
+      {o.status === "error" && <p className="text-sm text-rose-500">{o.reason ?? "Couldn't reach Tradier sandbox."}</p>}
+
+      {o.status === "no_data" && (
+        <>
+          <p className="text-sm text-foreground/80">{o.reason ?? "No usable options data this pull."}</p>
+          {(o.callOi != null || o.putOi != null) && (
+            <p className="mt-2 text-xs text-muted">
+              Open interest — calls {o.callOi ?? dash} · puts {o.putOi ?? dash}
+              {o.putCallOi != null ? ` · put/call ratio ${o.putCallOi.toFixed(2)}` : ""}
+            </p>
+          )}
+        </>
+      )}
+
+      {o.status === "ok" && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Spot (delayed)" value={price(o.spot)} />
+            <Field label={`Expiration (${o.expirationBasis === "standard-monthly" ? "monthly" : "nearest listed"})`} value={o.expiration ?? dash} />
+            <Field label="ATM strike / IV" value={`${o.atmStrike ?? dash} / ${pct(o.atmIv)}`} />
+            <Field label="Days to expiration" value={String(o.daysToExpiration ?? dash)} />
+          </div>
+
+          <Section title={`Implied move to ${o.expiration}`}>
+            <p className="text-sm text-foreground/80">
+              The ATM straddle&apos;s implied volatility ({pct(o.atmIv)} annualized) prices in roughly a{" "}
+              <strong>±{pct(o.expectedMovePct)}</strong> move ({price(o.expectedMoveDollars)}) by expiration — a
+              one-standard-deviation (~68% confidence) band of {price(o.expectedMoveLow)} – {price(o.expectedMoveHigh)},
+              not a hard ceiling, and it ignores volatility skew.
+            </p>
+            {stopVsMoveNote(o, p) && <p className="mt-2 text-sm text-foreground/80">{stopVsMoveNote(o, p)}</p>}
+          </Section>
+
+          <Section title="Positioning">
+            <p className="text-sm text-foreground/80">
+              Put/call open interest ratio:{" "}
+              <span className="font-semibold">{o.putCallOi != null ? o.putCallOi.toFixed(2) : dash}</span>{" "}
+              (calls {o.callOi ?? dash} · puts {o.putOi ?? dash} · {o.contractsCount ?? dash} contracts across this
+              expiration). Descriptive only — this is NOT treated as a directional buy/sell signal anywhere on this
+              platform (see the code comment on this panel for why).
+            </p>
+          </Section>
+        </>
+      )}
+
+      <p className="mt-4 text-[11px] text-muted">{o.generatedBy}</p>
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: OptionsSummary["status"] }) {
+  if (status === "ok") return <Badge tone="neutral">LIVE (delayed)</Badge>;
+  if (status === "error") return <Badge tone="down">FETCH ERROR</Badge>;
+  if (status === "not_configured") return <Badge tone="warn">NOT CONFIGURED</Badge>;
+  if (status === "not_applicable") return <Badge tone="neutral">N/A</Badge>;
+  return <Badge tone="warn">NO DATA</Badge>;
+}
+
+// One extra sentence bridging Entry & Exit's own stop to the options-implied
+// move — additive context only (see this function's header note above);
+// returns null (renders nothing) whenever Entry & Exit abstained or doesn't
+// apply, rather than showing a comparison against a missing number.
+function stopVsMoveNote(o: OptionsSummary, p?: EntryExitPlan): string | null {
+  if (!p || Number.isNaN(p.stop) || o.spot == null || o.expectedMovePct == null) return null;
+  const stopDistPct = Math.abs(p.stop - o.spot) / o.spot;
+  const cmp = stopDistPct < o.expectedMovePct ? "inside" : "beyond";
+  return `For reference, Entry & Exit's stop (${p.stop}) sits ${(stopDistPct * 100).toFixed(1)}% from Tradier's delayed spot (${price(
+    o.spot
+  )}) — ${cmp} the options market's implied ±${pct(o.expectedMovePct)} move to ${o.expiration}.`;
 }
 
 export function Field({
@@ -387,5 +492,142 @@ function StressAction({ ticker }: { ticker: string }) {
         <p className="text-xs text-rose-500">Couldn&apos;t reach Distresse.</p>
       )}
     </div>
+  );
+}
+
+// ── WW-Insider — SEC Form 4 insider activity, and the honest 13F gap ───────
+//
+// "SECURITY SPECIFIC, not opaque" (conviction.ts's own header phrase): this
+// panel shows the actual filings and transactions behind the net-direction
+// score conviction.ts's INSIDER_ACTIVITY_SLOT contributes — see
+// TickerHubClient.tsx's insiderConvictionSlot() for that mapping — so a
+// member can check the number against real, sourced filings instead of
+// trusting a black box.
+function InsiderStatusBadge({ status }: { status: InsiderReading["status"] }) {
+  if (status === "ok") return <Badge tone="neutral">LIVE — SEC EDGAR</Badge>;
+  if (status === "not_found") return <Badge tone="warn">NO CIK FOUND</Badge>;
+  return <Badge tone="down">EDGAR UNREACHABLE</Badge>;
+}
+
+function formatInsiderDate(iso: string | null): string {
+  if (!iso) return dash;
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+const acquiredDisposedTone = { A: "up", D: "down" } as const;
+
+function InsiderTransactionRow({ t }: { t: InsiderTransaction }) {
+  const dollars = t.shares != null && t.pricePerShare != null ? t.shares * t.pricePerShare : null;
+  return (
+    <li className="border-t border-hairline py-2.5 first:border-t-0 first:pt-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">
+          {t.insiderName ?? "Unnamed reporting person"}
+          {t.insiderRoles.length > 0 && (
+            <span className="ml-1.5 text-xs font-normal text-muted">({t.insiderRoles.join(", ")})</span>
+          )}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-muted">
+          {formatInsiderDate(t.transactionDate)}
+          {t.acquiredDisposedCode && (
+            <Badge tone={acquiredDisposedTone[t.acquiredDisposedCode] ?? "neutral"}>{t.transactionCodeLabel}</Badge>
+          )}
+          {t.derivative && <Badge tone="neutral">derivative</Badge>}
+          {t.isAmendment && <Badge tone="warn">amended</Badge>}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-foreground/80">
+        {t.shares != null ? t.shares.toLocaleString() : dash} shares
+        {t.pricePerShare != null ? ` @ ${price(t.pricePerShare)}` : ""}
+        {dollars != null ? ` (${money(dollars)})` : ""}
+        {t.sharesOwnedAfter != null ? ` · ${t.sharesOwnedAfter.toLocaleString()} owned after` : ""}
+        {t.ownershipType ? ` · ${t.ownershipType === "D" ? "direct" : "indirect"}` : ""}
+      </p>
+      <a href={t.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[11px] text-accent hover:underline">
+        View this Form 4 filing on SEC EDGAR →
+      </a>
+    </li>
+  );
+}
+
+export function InsiderPanel({ r }: { r: InsiderReading }) {
+  return (
+    <Card title="Insider activity (WW-Insider)" action={<InsiderStatusBadge status={r.status} />}>
+      {r.status === "not_found" && (
+        <p className="text-sm text-muted">{r.message ?? `No SEC CIK found for ${r.ticker}.`}</p>
+      )}
+
+      {r.status === "unreachable" && (
+        <p className="text-sm text-rose-500">{r.message ?? "Couldn't reach SEC EDGAR for this ticker."}</p>
+      )}
+
+      {r.status === "ok" && r.summary && (
+        <>
+          {r.message && (
+            <div className="mb-4 border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              ⚠ {r.message}
+            </div>
+          )}
+
+          {r.summary.signalTransactionCount === 0 ? (
+            <p className="text-sm text-foreground/80">
+              No open-market insider buying or selling for {r.ticker} in the last {r.windowDays} days
+              {r.filingsFound ? ` (${r.filingsFound} Form 4 filing${r.filingsFound === 1 ? "" : "s"} found, but none were open-market purchases/sales — see the raw filings below)` : " — SEC lists no Form 4 filings for this issuer in the window"}
+              . This is a real, checked answer — not the same as SEC being unreachable or the ticker not resolving.
+            </p>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
+              <Stat
+                label="Net insider direction"
+                value={r.summary.score == null ? "—" : `${r.summary.score > 0 ? "+" : ""}${r.summary.score.toFixed(0)}`}
+                sub="-100 (net selling) .. +100 (net buying)"
+                tone={r.summary.score != null && r.summary.score > 10 ? "up" : r.summary.score != null && r.summary.score < -10 ? "down" : "neutral"}
+              />
+              <div className="space-y-2 text-sm text-foreground/80">
+                <p>
+                  Confidence {Math.round(r.summary.confidence * 100)}% from {r.summary.signalTransactionCount}{" "}
+                  open-market buy/sell transaction{r.summary.signalTransactionCount === 1 ? "" : "s"} across{" "}
+                  {r.summary.distinctInsiders} distinct insider{r.summary.distinctInsiders === 1 ? "" : "s"} over the
+                  last {r.windowDays} days — a couple of trades from one person never carries the confidence a dozen
+                  independent ones does.
+                </p>
+                <p className="text-xs text-muted">
+                  {r.summary.buyCount} buy{r.summary.buyCount === 1 ? "" : "s"} ({money(r.summary.buyDollars)}) ·{" "}
+                  {r.summary.sellCount} sell{r.summary.sellCount === 1 ? "" : "s"} ({money(r.summary.sellDollars)})
+                  {" · "}dollar-weighted net direction {r.summary.netDirection >= 0 ? "+" : ""}
+                  {r.summary.netDirection.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {r.transactions && r.transactions.length > 0 && (
+            <Section title={`All Form 4 transactions in the window (${r.transactions.length})`}>
+              <ul>
+                {r.transactions.map((t, i) => (
+                  <InsiderTransactionRow key={`${t.accessionNumber}-${i}`} t={t} />
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          <p className="mt-4 text-[11px] text-muted">
+            Only open-market purchases (P) and sales (S) feed the direction/confidence above — grants, tax-withholding
+            dispositions, option exercises and gifts are shown in the list for transparency but are compensation
+            mechanics, not a discretionary buy/sell decision, so they&apos;re excluded from the score.
+          </p>
+        </>
+      )}
+
+      <div className="mt-4 border-t border-hairline pt-3">
+        <p className="text-[11px] text-muted">
+          <strong>Institutional ownership (13F) trend: not shown.</strong> {r.thirteenF.reason}
+        </p>
+      </div>
+
+      <p className="mt-3 text-[11px] text-muted">{r.generatedBy}</p>
+    </Card>
   );
 }
