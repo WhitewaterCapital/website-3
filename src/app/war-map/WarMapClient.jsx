@@ -1129,15 +1129,22 @@ export default function WarMapClient() {
       </main>
     </div>
   );
+}
 
-  function MiniFeed() {
-    const [items, setItems] = useState([]);
-    useEffect(() => {
-      fetch('/api/whitewatch/news?limit=8').then((r) => r.json()).then((d) => setItems(d.items || [])).catch(() => setItems([]));
-    }, []);
-    if (items.length === 0) return <div className="ww-muted">No live items yet.</div>;
-    return <div className="ww-feed-list">{items.map((item) => <FeedCard key={item.id || item.link} item={item} compact />)}</div>;
-  }
+// Was previously declared INSIDE WarMapClient's function body, which meant
+// React saw a brand-new component type on every parent re-render (the
+// 1-second clock tick alone re-renders WarMapClient every second) and fully
+// unmounted+remounted this component each time -- re-running its useEffect
+// and re-fetching /api/whitewatch/news forever, once per second, for as
+// long as the page stayed open. Hoisted to module scope (like FeedCard,
+// DashCard, etc. below) so it mounts once and its effect only runs once.
+function MiniFeed() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    fetch('/api/whitewatch/news?limit=8').then((r) => r.json()).then((d) => setItems(d.items || [])).catch(() => setItems([]));
+  }, []);
+  if (items.length === 0) return <div className="ww-muted">No live items yet.</div>;
+  return <div className="ww-feed-list">{items.map((item) => <FeedCard key={item.id || item.link} item={item} compact />)}</div>;
 }
 
 const BLOOMBERG_CHANNEL_ID = 'UCUMZ7gohGI9HcU9VNsr2FJQ';
