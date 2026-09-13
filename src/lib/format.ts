@@ -33,3 +33,12 @@ export function num(n: number, digits = 1): string {
     maximumFractionDigits: digits,
   });
 }
+
+// Whole days between an ISO date/timestamp and now. Used to decide whether a
+// data export is "live" or stale enough to flag — never hides the number,
+// just informs the live/stale dot shown next to it (see ui.tsx's LiveDot).
+export function daysSince(iso: string): number {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return Infinity;
+  return Math.max(0, Math.floor((Date.now() - then) / (24 * 60 * 60 * 1000)));
+}

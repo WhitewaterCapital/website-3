@@ -7,6 +7,8 @@ import type {
   StressVerdict,
   EntryExitPlan,
   Instrument,
+  IdeaTimeframe,
+  IdeaCatalystType,
 } from "@/lib/models/types";
 
 type Result = {
@@ -22,9 +24,34 @@ const INSTRUMENTS: { value: Instrument; label: string }[] = [
   { value: "future", label: "Future" },
 ];
 
+// What "long"/"short" alone doesn't say: the window this idea is meant to
+// play out over. "Long AAPL" as a multi-quarter thesis and "long AAPL just
+// for earnings" are different bets — this picks which one, and distresse.ts
+// weights its six real dimensions differently depending on the answer (see
+// that file's DIMENSION_RELEVANCE table). Default "position" reproduces the
+// original undifferentiated read exactly.
+const TIMEFRAMES: { value: IdeaTimeframe; label: string; hint: string }[] = [
+  { value: "intraday", label: "Intraday", hint: "hours — closed today/next session" },
+  { value: "swing", label: "Swing", hint: "days to a few weeks" },
+  { value: "position", label: "Position", hint: "weeks to a few months" },
+  { value: "long-term", label: "Long-term", hint: "6+ months" },
+];
+
+// What's actually expected to move it, if anything specific — independent of
+// timeframe (an earnings bet can be held as a swing, or just the print).
+const CATALYSTS: { value: IdeaCatalystType; label: string }[] = [
+  { value: "general-thesis", label: "General thesis" },
+  { value: "earnings", label: "Earnings print" },
+  { value: "fed-macro-event", label: "Fed / macro event" },
+  { value: "product-launch", label: "Product launch" },
+  { value: "technical-level", label: "Technical level" },
+];
+
 export function StressTestClient() {
   const [ticker, setTicker] = useState("");
   const [instrument, setInstrument] = useState<Instrument>("long");
+  const [timeframe, setTimeframe] = useState<IdeaTimeframe>("position");
+  const [catalystType, setCatalystType] = useState<IdeaCatalystType>("general-thesis");
   const [thesis, setThesis] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +69,7 @@ export function StressTestClient() {
       const res = await fetch("/api/models/stress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticker, instrument, thesis }),
+        body: JSON.stringify({ ticker, instrument, thesis, timeframe, catalystType }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       setResult(await res.json());
@@ -83,6 +110,51 @@ export function StressTestClient() {
               </select>
             </label>
           </div>
+
+          <div>
+            <span className="eyebrow">Timeframe — what does &quot;{instrument === "short" || instrument === "put" ? "short" : "long"}&quot; mean here?</span>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {TIMEFRAMES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setTimeframe(t.value)}
+                  title={t.hint}
+                  className={`border px-3 py-2 text-left text-xs transition ${
+                    timeframe === t.value
+                      ? "border-accent bg-accent/10 text-foreground"
+                      : "border-hairline text-muted hover:border-foreground/40 hover:text-foreground"
+                  }`}
+                >
+                  <span className="block font-medium uppercase tracking-wide">{t.label}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted">{t.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="block">
+            <span className="eyebrow">Catalyst — is this about one specific event?</span>
+            <select
+              value={catalystType}
+              onChange={(e) => setCatalystType(e.target.value as IdeaCatalystType)}
+              className="mt-1 w-full border border-hairline bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
+            >
+              {CATALYSTS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            {catalystType === "earnings" && (
+              <p className="mt-1 text-[11px] text-muted">
+                Betting on the print itself — Distresse leans on news/positioning going into it and
+                de-emphasizes valuation and the macro regime, which say almost nothing about which way
+                a single earnings print goes.
+              </p>
+            )}
+          </label>
+
           <label className="block">
             <span className="eyebrow">Thesis</span>
             <textarea

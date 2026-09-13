@@ -1,12 +1,27 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------- */
+/* CORE PALETTE — redesigned 2026-09-13. The previous palette (warm cream    */
+/* background, coral accent, light-weight editorial display type) read as a  */
+/* marketing/blog site, not a trading platform — direct user feedback        */
+/* ("looks ai and childish"). This is a cooler, higher-contrast,             */
+/* terminal-adjacent system: near-black/near-white neutrals, a single        */
+/* confident blue accent (never used for up/down — those stay the existing   */
+/* emerald/rose semantic colors used throughout the components), and         */
+/* tabular/mono treatment for data. Dark is the primary target (most         */
+/* professional trading UIs default dark — see PLATFORM_REBUILD_PLAN.md's    */
+/* redesign section for the research this was based on); light stays fully   */
+/* supported for prefers-color-scheme: light users. */
 :root {
-  --background: #fbfaf8;
-  --foreground: #16130f;
-  --muted: #6f6a64;
-  --hairline: #e6e2dc;
-  --paper: #f4f1ec;
-  --accent: #e0603f; /* GSA-style coral */
+  --background: #f5f6f8;
+  --foreground: #10131a;
+  --muted: #5b6472;
+  --hairline: #dfe3e9;
+  --paper: #ffffff;
+  --accent: #1d5fe0; /* confident, cool blue — never used for up/down */
+  --accent-soft: rgba(29, 95, 224, 0.1);
+  --up: #0a8f5b;
+  --down: #d1373f;
 }
 
 @theme inline {
@@ -22,12 +37,15 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #100e0c;
-    --foreground: #f3efe9;
-    --muted: #a09a92;
-    --hairline: #2a2621;
-    --paper: #181512;
-    --accent: #f0765a;
+    --background: #0a0c10;
+    --foreground: #e9ebef;
+    --muted: #8b93a3;
+    --hairline: #20242c;
+    --paper: #12151b;
+    --accent: #4c8dff;
+    --accent-soft: rgba(76, 141, 255, 0.14);
+    --up: #22c07d;
+    --down: #f0555d;
   }
 }
 
@@ -83,11 +101,13 @@
     linear-gradient(135deg, #e9694d 0%, #9aa6a3 100%);
 }
 
-/* Large, light display type in the GSA vein */
+/* Display type — tightened 2026-09-13 from a light-weight editorial treatment
+   (font-weight 450, loose tracking) to a denser, higher-contrast weight that
+   reads as a data product rather than a blog headline. */
 .display {
-  font-weight: 450;
-  letter-spacing: -0.02em;
-  line-height: 1.02;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
 }
 
 body {
@@ -97,13 +117,64 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Editorial small-caps label used across the UI */
+/* Small-caps section label used across the UI */
 .eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   font-size: 0.68rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* Tabular figures for any inline numeric readout that isn't already using
+   Tailwind's tabular-nums utility. */
+.mono-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* A small pulsing dot for "this is a live/real read" status — always paired
+   with a text label next to it (never color/motion alone), per the same
+   accessibility rule the viz palette above follows. */
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--up);
+  flex: none;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: var(--up);
+  opacity: 0.35;
+  animation: livePulse 2s ease-out infinite;
+}
+.live-dot.stale {
+  background: var(--muted);
+}
+.live-dot.stale::after {
+  background: var(--muted);
+}
+@keyframes livePulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* Entrance animation for the hero */

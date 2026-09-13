@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { models } from "@/lib/models/registry";
-import type { TradeIdea, Instrument, TradeEvidence } from "@/lib/models/types";
+import type { TradeIdea, Instrument, TradeEvidence, IdeaTimeframe, IdeaCatalystType } from "@/lib/models/types";
 import { getEquityExport, findSecurity } from "@/lib/incepta";
+
+const VALID_TIMEFRAMES: IdeaTimeframe[] = ["intraday", "swing", "position", "long-term"];
+const VALID_CATALYSTS: IdeaCatalystType[] = [
+  "general-thesis",
+  "earnings",
+  "fed-macro-event",
+  "product-launch",
+  "technical-level",
+];
 
 // Runs both Stress Test engines on one idea: Distresse (verdict) + Intra (plan).
 // If the ticker is covered by the Incepta equity engine, its risk/quality/
@@ -40,10 +49,26 @@ export async function POST(req: Request) {
     }
   }
 
+  // Timeframe/catalyst: an explicit outlook, not just direction — see
+  // types.ts's IdeaTimeframe/IdeaCatalystType comments. Untrusted request
+  // body, so validate against the closed set rather than casting; anything
+  // unrecognized (or omitted) falls back to the neutral defaults that
+  // reproduce the original undifferentiated behavior in distresse.ts.
+  const timeframeRaw = String(body.timeframe ?? "");
+  const timeframe: IdeaTimeframe | undefined = (VALID_TIMEFRAMES as string[]).includes(timeframeRaw)
+    ? (timeframeRaw as IdeaTimeframe)
+    : undefined;
+  const catalystRaw = String(body.catalystType ?? "");
+  const catalystType: IdeaCatalystType | undefined = (VALID_CATALYSTS as string[]).includes(catalystRaw)
+    ? (catalystRaw as IdeaCatalystType)
+    : undefined;
+
   const idea: TradeIdea = {
     ticker,
     instrument,
     thesis,
+    timeframe,
+    catalystType,
     horizon: body.horizon ? String(body.horizon) : undefined,
     sizePct: body.sizePct ? Number(body.sizePct) : undefined,
     evidence,

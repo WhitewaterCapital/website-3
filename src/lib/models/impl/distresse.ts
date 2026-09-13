@@ -1,4 +1,13 @@
-import type { EvaluatorModel, TradeIdea, TradeEvidence, StressVerdict, Rating, Dimension } from "../types";
+import type {
+  EvaluatorModel,
+  TradeIdea,
+  TradeEvidence,
+  StressVerdict,
+  Rating,
+  Dimension,
+  IdeaTimeframe,
+  IdeaCatalystType,
+} from "../types";
 import { getEquityExport, findSecurity } from "@/lib/incepta";
 import { getFactorExport } from "@/lib/factor";
 import { fetchInsiderTransactions } from "@/lib/whitewatch-data/edgar-sources";
@@ -519,6 +528,105 @@ async function buildSentimentDimension(
   };
 }
 
+// ─── Outlook relevance — what "long"/"short" alone doesn't say ─────────────
+// The instrument (long/short/call/put/future) says direction. It says nothing
+// about the WINDOW the idea is meant to play out over — "long AAPL" as a
+// multi-quarter fundamental thesis and "long AAPL just for earnings, betting
+// on the print" are different bets that should lean on different evidence.
+// `idea.timeframe`/`idea.catalystType` (types.ts) let the caller say which one
+// this is; this table turns that into a per-dimension relevance weight in
+// [0, 1] used below instead of a plain average. Both default to the values
+// that reproduce the ORIGINAL unweighted behavior ("position" timeframe,
+// "general-thesis" catalyst = all dimensions at full weight) so every
+// existing caller that doesn't set these fields is unaffected.
+//
+// Rationale, briefly:
+//   - An intraday/swing bet lives and dies on news/positioning right now, not
+//     on a multi-quarter valuation level or the broad macro regime — those get
+//     down-weighted, not zeroed (a inverted curve can still spoil an intraday
+//     long, just less than it would a 6-month hold).
+//   - A long-term thesis is the opposite: today's headline sentiment decays in
+//     hours/days (buildSentimentDimension's own note says so) and matters much
+//     less than valuation, factor exposure, and the macro regime over a
+//     multi-quarter hold.
+//   - An earnings-specific bet (the concrete case this table exists for) is a
+//     bet on ONE dated event: news/positioning going into the print dominate;
+//     valuation and the macro regime say almost nothing about which way a
+//     single print goes, so they're heavily de-emphasized rather than driving
+//     the call.
+// No fabricated options/IV/earnings-move-history dimension is added here —
+// this app has no free source for that (same gap /watch already documents) —
+// this table only reweights the six REAL dimensions that already exist.
+const TIMEFRAME_RELEVANCE: Record<IdeaTimeframe, Record<string, number>> = {
+  intraday: {
+    "Macro regime fit": 0.2,
+    "Factor exposure": 0.3,
+    "Positioning / crowding": 0.4,
+    "Valuation vs history": 0.15,
+    "News attention & sentiment": 1.0,
+    "Liquidity / correlation": 0.85,
+  },
+  swing: {
+    "Macro regime fit": 0.5,
+    "Factor exposure": 0.6,
+    "Positioning / crowding": 0.8,
+    "Valuation vs history": 0.4,
+    "News attention & sentiment": 1.0,
+    "Liquidity / correlation": 0.7,
+  },
+  position: {
+    "Macro regime fit": 1.0,
+    "Factor exposure": 1.0,
+    "Positioning / crowding": 1.0,
+    "Valuation vs history": 1.0,
+    "News attention & sentiment": 1.0,
+    "Liquidity / correlation": 1.0,
+  },
+  "long-term": {
+    "Macro regime fit": 1.0,
+    "Factor exposure": 1.0,
+    "Positioning / crowding": 0.5,
+    "Valuation vs history": 1.0,
+    "News attention & sentiment": 0.3,
+    "Liquidity / correlation": 0.6,
+  },
+};
+
+// Multiplicative on top of the timeframe weight, clamped to [0, 1] after.
+// "general-thesis" is the identity (×1 everywhere) so it never changes
+// behavior for callers that don't set a catalyst.
+const CATALYST_MULTIPLIER: Record<IdeaCatalystType, Record<string, number>> = {
+  "general-thesis": {},
+  earnings: {
+    "Macro regime fit": 0.5,
+    "Factor exposure": 0.7,
+    "Valuation vs history": 0.5,
+    "News attention & sentiment": 1.2,
+    "Positioning / crowding": 1.1,
+  },
+  "fed-macro-event": {
+    "Macro regime fit": 1.3,
+    "Valuation vs history": 0.6,
+    "Factor exposure": 0.9,
+  },
+  "product-launch": {
+    "News attention & sentiment": 1.2,
+    "Valuation vs history": 0.6,
+  },
+  "technical-level": {
+    "Liquidity / correlation": 1.2,
+    "Factor exposure": 1.1,
+    "Macro regime fit": 0.8,
+    "Valuation vs history": 0.8,
+  },
+};
+
+function dimensionRelevance(label: string, timeframe: IdeaTimeframe, catalystType: IdeaCatalystType): number {
+  const base = TIMEFRAME_RELEVANCE[timeframe]?.[label] ?? 1.0;
+  const mult = CATALYST_MULTIPLIER[catalystType]?.[label] ?? 1.0;
+  return Math.max(0, Math.min(1, base * mult));
+}
+
 // ─── Bottom line ────────────────────────────────────────────────────────────
 function buildBottomLine(
   rating: Rating,
@@ -527,6 +635,9 @@ function buildBottomLine(
   ticker: string,
   isShort: boolean,
   missing: string[],
+  timeframe: IdeaTimeframe,
+  catalystType: IdeaCatalystType,
+  deemphasized: string[],
 ): string {
   const dirWord = isShort ? "short" : "long";
   const coveragePct = Math.round(coverage * 100);
@@ -537,14 +648,24 @@ function buildBottomLine(
   if (available.length === 0) {
     verdict = `No usable real evidence came back for ${ticker} right now — every real source either abstained or couldn't be reached. This isn't a "no-go" call, it's "come back once at least one real source is live."`;
   } else if (rating === "go") {
-    verdict = `The real evidence lines up${strongest ? `, led by ${strongest.label.toLowerCase()} (${strongest.score > 0 ? "+" : ""}${strongest.score})` : ""} — clears the bar on ${coveragePct}% coverage. Size the ${dirWord} and define the invalidation.`;
+    verdict = `The real evidence lines up${strongest ? `, led by ${strongest.label.toLowerCase()} (${strongest.score > 0 ? "+" : ""}${strongest.score})` : ""} — clears the bar on ${coveragePct}% weighted coverage. Size the ${dirWord} and define the invalidation.`;
   } else if (rating === "no-go") {
     verdict = `The real evidence leans against this ${dirWord}${strongest ? `, mainly ${strongest.label.toLowerCase()} (${strongest.score})` : ""}. Pass, or wait for the picture to change.`;
   } else {
-    verdict = `Mixed real evidence at ${coveragePct}% coverage — nothing here is strong enough on its own to call a clean go or no-go on this ${dirWord}.`;
+    verdict = `Mixed real evidence at ${coveragePct}% weighted coverage — nothing here is strong enough on its own to call a clean go or no-go on this ${dirWord}.`;
   }
   if (missing.length) {
     verdict += ` Abstained rather than guessed on: ${missing.join(", ")}.`;
+  }
+  if (timeframe !== "position" || catalystType !== "general-thesis") {
+    const window =
+      timeframe === "intraday" ? "an intraday" : timeframe === "swing" ? "a swing (days–weeks)" : "a long-term";
+    const catalystTxt =
+      catalystType !== "general-thesis" ? `, framed around ${catalystType.replace(/-/g, " ")}` : "";
+    verdict += ` Read as ${window} idea${catalystTxt}: weighting leans on the dimensions that actually move over that window.`;
+    if (deemphasized.length) {
+      verdict += ` De-emphasized for this horizon: ${deemphasized.join(", ")}.`;
+    }
   }
   return verdict;
 }
@@ -564,6 +685,8 @@ export const distresse: EvaluatorModel = {
   async evaluate(idea: TradeIdea): Promise<StressVerdict> {
     const ticker = idea.ticker.trim().toUpperCase();
     const isShort = idea.instrument === "short" || idea.instrument === "put";
+    const timeframe: IdeaTimeframe = idea.timeframe ?? "position";
+    const catalystType: IdeaCatalystType = idea.catalystType ?? "general-thesis";
     const companyName = await getCompanyName(ticker);
 
     const [macro, factor, positioning, valuation, sentiment, liquidity] = await Promise.all([
@@ -578,13 +701,33 @@ export const distresse: EvaluatorModel = {
     const parts: DimResult[] = [macro, factor, positioning, valuation, sentiment, liquidity];
     const dims: Dimension[] = parts.map((p) => p.dim);
     const availableDims = dims.filter((d) => d.available);
-    const coverage = availableDims.length / dims.length;
-    const avg = availableDims.length ? availableDims.reduce((s, d) => s + d.score, 0) / availableDims.length : 0;
+    // Coverage/average are RELEVANCE-WEIGHTED, not a plain count/mean, so an
+    // idea's stated timeframe/catalyst (see the relevance table above) shapes
+    // which real dimensions actually drive the call. For the defaults
+    // ("position" / "general-thesis") every weight is 1.0 and this reduces
+    // exactly to the original plain average — existing callers see no change.
+    const weightOf = (d: Dimension) => dimensionRelevance(d.label, timeframe, catalystType);
+    const totalWeight = dims.reduce((s, d) => s + weightOf(d), 0);
+    const availableWeight = availableDims.reduce((s, d) => s + weightOf(d), 0);
+    const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
+    const avg =
+      availableWeight > 0
+        ? availableDims.reduce((s, d) => s + d.score * weightOf(d), 0) / availableWeight
+        : 0;
+    // Dimensions materially down-weighted for this timeframe/catalyst (and
+    // still available — no point flagging something that already abstained),
+    // named plainly in the bottom line rather than left as a silent number
+    // change from what a "position"-horizon read would have shown.
+    const deemphasized = availableDims
+      .filter((d) => weightOf(d) < 0.6)
+      .map((d) => d.label);
 
     const rating: Rating = availableDims.length === 0 ? "conditional" : avg > 25 ? "go" : avg < -20 ? "no-go" : "conditional";
-    // Conviction is scaled down by coverage, not just by score magnitude — a
-    // strong-looking average built on 1 of 6 real dimensions should never
-    // read as confidently as the same average built on 6 of 6.
+    // Conviction is scaled down by (weighted) coverage, not just by score
+    // magnitude — a strong-looking average built on 1 of 6 real dimensions
+    // should never read as confidently as the same average built on 6 of 6,
+    // and a dimension that's real but de-emphasized for this horizon counts
+    // for less coverage too.
     const magnitudeConviction = Math.min(95, 35 + Math.abs(avg) * 0.6);
     const conviction = Math.round(Math.max(5, magnitudeConviction * (0.35 + 0.65 * coverage)));
 
@@ -604,11 +747,25 @@ export const distresse: EvaluatorModel = {
     }
 
     const missing = dims.filter((d) => !d.available).map((d) => d.label);
-    const bottomLine = buildBottomLine(rating, coverage, dims, ticker, isShort, missing);
+    const bottomLine = buildBottomLine(
+      rating,
+      coverage,
+      dims,
+      ticker,
+      isShort,
+      missing,
+      timeframe,
+      catalystType,
+      deemphasized,
+    );
 
     const regime = macro.regimeLine ?? "Not available this read — FRED unreachable or FRED_API_KEY not set.";
     const evidenceTag = idea.evidence ? ` · Incepta evidence (${idea.evidence.confidence})` : "";
-    const generatedBy = `Distresse · ${availableDims.length}/${dims.length} real dimensions covered${evidenceTag}`;
+    const outlookTag =
+      timeframe !== "position" || catalystType !== "general-thesis"
+        ? ` · ${timeframe}${catalystType !== "general-thesis" ? `/${catalystType}` : ""} outlook`
+        : "";
+    const generatedBy = `Distresse · ${availableDims.length}/${dims.length} real dimensions covered${evidenceTag}${outlookTag}`;
 
     return {
       ticker,

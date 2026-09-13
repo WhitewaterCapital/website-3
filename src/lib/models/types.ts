@@ -22,6 +22,33 @@ export type ModelMeta = {
 
 export type Instrument = "long" | "short" | "call" | "put" | "future";
 
+// What "long"/"short" alone doesn't tell you: over what window this idea is
+// meant to play out. "Long AAPL" is a different bet depending on whether it's
+// a same-day read, a multi-week swing into a known date, a multi-month
+// position, or a multi-year hold — the SAME instrument field, four different
+// theses. This is deliberately a small, closed set (not free text) so models
+// can key real behavior off it (see distresse.ts's DIMENSION_RELEVANCE).
+//   intraday   — hours; closed same day or next session
+//   swing      — days to a few weeks; often built around a known date/event
+//   position   — weeks to a few months (the implicit default before this field existed)
+//   long-term  — 6+ months, thesis expected to take quarters to play out
+export type IdeaTimeframe = "intraday" | "swing" | "position" | "long-term";
+
+// What's actually expected to move the name, if anything specific — distinct
+// from `IdeaTimeframe` (you can hold an earnings bet for a swing OR just the
+// print itself). "earnings" is the concrete case the platform gets asked
+// about most ("long AAPL just for earnings, betting on the print"): it says
+// this is a bet on ONE dated event, not the multi-quarter fundamental case —
+// which should lean on News/positioning going into the print, not on
+// valuation or the macro regime. `general-thesis` (the default) preserves the
+// original undifferentiated behavior.
+export type IdeaCatalystType =
+  | "general-thesis"
+  | "earnings"
+  | "fed-macro-event"
+  | "product-launch"
+  | "technical-level";
+
 // Evidence that can ride along with an idea — e.g. the Incepta equity engine's
 // risk/quality/valuation read for the ticker. Distresse is the judge; this is
 // the evidence it judges on. Loosely typed so any evidence source can attach.
@@ -39,7 +66,9 @@ export type TradeIdea = {
   ticker: string;
   instrument: Instrument;
   thesis: string;
-  horizon?: string; // "3–6 months"
+  timeframe?: IdeaTimeframe; // defaults to "position" wherever read — see distresse.ts
+  catalystType?: IdeaCatalystType; // defaults to "general-thesis" wherever read
+  horizon?: string; // legacy free-text display horizon, e.g. "3–6 months" — kept for existing callers, independent of `timeframe`
   sizePct?: number; // intended % of book
   evidence?: TradeEvidence; // optional engine evidence for Distresse
 };
