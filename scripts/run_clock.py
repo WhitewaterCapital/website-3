@@ -31,9 +31,26 @@ that already existed before this file:
       - equity -> `weekly-engine/wf/export.py`        (python -m wf.export,        cwd=weekly-engine/)
                   `graph-engine/ge/export.py`         (python -m ge.export,        cwd=graph-engine/)
                   `quant-infra/alloc/export.py`       (python export.py,           cwd=quant-infra/alloc/)
+                  `factor-engine/fac/export.py`       (python -m fac.export,       cwd=factor-engine/)        [added 2026-09-13]
+                  `intra-exitus-engine/ie/export.py`  (python -m ie.export,        cwd=intra-exitus-engine/)  [added 2026-09-13]
+                  `engine/incepta/cli.py ingest/export` (python -m incepta.cli ingest/export <tickers>, cwd=engine/) [added 2026-09-13]
       - chaos  -> `chaos-engine/chaos/export.py`      (python -m chaos.export,     cwd=chaos-engine/)
-    (Equity gets all three per this repo's own model-registry table: weekly,
-    graph, and alloc are all hourly-during-market-hours models.)
+    (Equity gets all of these per this repo's own model-registry table: every
+    one of weekly/graph/alloc/factor/intra-exitus/incepta is a
+    hourly-during-market-hours model. factor/intra-exitus/incepta all read
+    Tiingo daily closes just like graph/weekly already do — re-running them
+    hourly against an unchanged EOD close is a harmless no-op most of the
+    day, same accepted tradeoff this repo already made for weekly/graph, not
+    a new one introduced here. incepta needs `ingest` run before `export`
+    every single invocation because nothing here persists its DuckDB store
+    across runs (a fresh GitHub Actions runner has no prior `engine/data/`);
+    at this universe's size (5 tickers) that's cheap enough hourly.
+    factor/intra-exitus/incepta all need `TIINGO_API_KEY` (incepta also
+    `SEC_USER_AGENT`) actually present in the environment to produce LIVE
+    rather than synthetic-demo output — see this repo's own
+    `.github/workflows/clock-equity.yml` for where those come from
+    (GitHub Actions repository secrets, not a committed `.env`, since `.env*`
+    is gitignored everywhere in this repo on purpose).
 
 What this script is the one legitimate place to do, which nothing else in
 this repo should: use `datetime.now(timezone.utc)` as "now". Every clock
@@ -105,6 +122,22 @@ ENGINE_JOBS: dict[str, list[dict]] = {
         {"name": "weekly", "cwd": REPO_ROOT / "weekly-engine", "cmd": [sys.executable, "-m", "wf.export"]},
         {"name": "graph", "cwd": REPO_ROOT / "graph-engine", "cmd": [sys.executable, "-m", "ge.export"]},
         {"name": "alloc", "cwd": REPO_ROOT / "quant-infra" / "alloc", "cmd": [sys.executable, "export.py"]},
+        {"name": "factor", "cwd": REPO_ROOT / "factor-engine", "cmd": [sys.executable, "-m", "fac.export"]},
+        {"name": "intra_exitus", "cwd": REPO_ROOT / "intra-exitus-engine", "cmd": [sys.executable, "-m", "ie.export"]},
+        # Incepta needs `ingest` re-run before every single `export` — no
+        # DuckDB store persists across a fresh GitHub Actions runner (see the
+        # module docstring above). Two sequential ENGINE_JOBS entries, same
+        # 5-ticker universe already live in public/data/incepta/latest.json.
+        {
+            "name": "incepta_ingest",
+            "cwd": REPO_ROOT / "engine",
+            "cmd": [sys.executable, "-m", "incepta.cli", "ingest", "AAPL", "MSFT", "NVDA", "KO", "F"],
+        },
+        {
+            "name": "incepta_export",
+            "cwd": REPO_ROOT / "engine",
+            "cmd": [sys.executable, "-m", "incepta.cli", "export", "AAPL", "MSFT", "NVDA", "KO", "F"],
+        },
     ],
     "chaos": [
         {"name": "chaos", "cwd": REPO_ROOT / "chaos-engine", "cmd": [sys.executable, "-m", "chaos.export"]},
