@@ -119,7 +119,16 @@ export function IntraPanel({ p }: { p: EntryExitPlan }) {
   // (see impl/intra-exitus.ts) rather than a fabricated band. Showing raw
   // "NaN – NaN" to a member is its own bug on top of the abstain, so catch
   // it here and render the honest rationale instead of broken numbers.
-  const abstained = Number.isNaN(p.stop);
+  //
+  // IMPORTANT: `Number.isNaN(p.stop)` alone is NOT enough. This plan usually
+  // reaches the client through a JSON API response (/api/models/stress), and
+  // `JSON.stringify(NaN)` silently produces `null`, not "NaN" — confirmed
+  // live 2026-09-13, where an abstained NVDA plan rendered a raw
+  // "null – null" / "null" grid ABOVE the correct rationale text instead of
+  // being hidden, because `Number.isNaN(null)` is false. `Number.isFinite`
+  // catches NaN, null, and undefined in one check, so it survives the
+  // round-trip through JSON regardless of which numeric non-value comes back.
+  const abstained = !Number.isFinite(p.stop);
 
   return (
     <Card
