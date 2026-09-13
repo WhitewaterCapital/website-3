@@ -22,6 +22,98 @@ What actual quant shops do to vet a signal or idea before it gets capital, and w
 - **Factor decomposition as the shared language for risk**, the way Two Sigma's Venn frames it — this is basically what WW-Factor already does; the fix is using it as an *input* to Distresse's judgement rather than a disconnected panel.
 - ETF holdings (needed for a real Cascade Network) are actually publicly available for free — iShares, State Street and Vanguard all publish daily holdings files with no key required (confirmed via [talsan/ishares](https://github.com/talsan/ishares), an open scraper against iShares' own public endpoint). This is buildable, just not trivial — see Phase 3.
 
+## Visual redesign + trade-idea outlook semantics (2026-09-13)
+
+Direct, blunt user feedback after the `/visuals` cleanup above: the previous
+look was "still gay... ai and childish," the cleanup pass itself was called
+"rushed," and the explicit ask was to slow down, research real dashboard
+design, and redesign properly — plus two real product questions: what does
+"long" actually mean (timeframe? one dated event like earnings?), and can the
+UI let you pick a timeframe. This section is the record of what changed and
+why, kept separate from the honest-inventory table above since it's a design
+pass, not a real-vs-fake data audit.
+
+**Research done before touching code** (per the explicit "take inspo online"
+instruction): web research on professional trading/fintech dashboard design
+patterns — dark-first neutral palettes with one confident accent color,
+semantic green/red kept separate from the brand accent, tabular/monospaced
+figures, card-based modular grids, sidebar/compact nav freeing the main
+canvas for data, and a live-status signal (dot + label, never color alone)
+next to anything real-time. Also looked at what Bloomberg Terminal and
+TradingView actually do stylistically. This is what the change below is
+grounded in, not a guess.
+
+**What shipped:**
+- **Design system** (`globals.css`, `ui.tsx`, `ModuleNav.tsx`) — replaced the
+  warm "GSA-style" editorial theme (cream background `#fbfaf8`, coral accent
+  `#e0603f`, light-weight `.display` heading at font-weight 450) with a
+  cooler, higher-contrast, terminal-adjacent palette: near-black/near-white
+  neutrals, a single confident blue accent (`#1d5fe0` light / `#4c8dff`
+  dark) never used for up/down (those stay the existing emerald/rose
+  semantic colors already used throughout), `.display` tightened to
+  font-weight 620, a new `.live-dot` pulsing status indicator, and a `Tile`
+  primitive for dense status strips. This is a CSS-token + shared-primitive
+  change, so it cascades to every page automatically — including `/visuals`'
+  page chrome (nav, cards, headings) — but does NOT touch the bespoke SVG
+  drawing logic inside `DislocationField.tsx`/`ChaosRibbon.tsx` or the
+  `--viz-*` categorical palette (that palette is separately validated —
+  `scripts/validate_palette.js` — and touching it wasn't in scope here).
+  `/visuals` itself still needs its own structural pass once the history-log
+  infra (priority #4, still pending) gives it real history to scrub through
+  — see priority order below, unchanged on that point.
+- **Consolidated dashboard** (`/dashboard`, rebuilt) — directly answers "I
+  want one nice dashboard which can have everything running live with the
+  models." Now: a **live-models status strip** that server-fetches Distresse
+  (always-live), Intra/Exitus, Aurora macro, Incepta equity, and WW-Factor
+  and shows each with an honest live/stale/synthetic-demo dot — not just a
+  link to go find out elsewhere; **the Stress Test engine embedded directly**
+  ("run a check" — same component as `/stress-test`, including the new
+  timeframe/catalyst selector below) so a live model run doesn't require
+  leaving the page; and the existing portfolio/allocator/disagreement
+  sections restyled and kept. Per-module pages (Sentiment, News, Position
+  Monitor, Weekly Ranking, WHITEWATCH, Visuals, etc.) are now a compact
+  one-line nav strip instead of a page of giant cards, for density.
+- **Trade-idea timeframe/catalyst** (`types.ts`, `distresse.ts`, the stress
+  API route, `StressTestClient.tsx`) — answers "when I say long AAPL, what
+  outlook is that, and what if I mean just for earnings." `TradeIdea` gets
+  two new optional fields: `timeframe: IdeaTimeframe` (`intraday` / `swing` /
+  `position` / `long-term`) and `catalystType: IdeaCatalystType`
+  (`general-thesis` / `earnings` / `fed-macro-event` / `product-launch` /
+  `technical-level`), with a segmented-button + dropdown selector on the idea
+  form. Distresse's `evaluate()` now computes a **relevance-weighted**
+  average and coverage across its six real dimensions instead of a flat
+  mean — an earnings-print bet leans on News attention/positioning and
+  heavily de-emphasizes valuation and the macro regime (which say almost
+  nothing about which way one dated print goes); a long-term thesis leans
+  the opposite way, since news sentiment decays in hours/days per that
+  dimension's own note. The bottom line states plainly which dimensions were
+  de-emphasized and why. Defaults (`"position"` / `"general-thesis"`) are
+  defined to reproduce the ORIGINAL flat-average behavior exactly — every
+  existing caller that doesn't set these fields sees no change. No fabricated
+  options/IV/earnings-move-history dimension was added — no free source for
+  that exists (same gap `/watch` already documents) — this only reweights
+  the six real dimensions that already existed.
+- Also: `AllocatorRibbon.tsx`/`CascadeNetwork.tsx`, orphaned since the
+  earlier `/visuals` cleanup and left in place only by the deletion-permission
+  denial (see Roadblocks), are now gone — you deleted them yourself with the
+  exact commands logged there. Confirmed via `git status` before committing.
+
+**What did NOT ship in this pass** (being explicit rather than implying more
+was done than was): `/visuals` itself was not restructured — still two
+panels, still single-snapshot, still waiting on the history-log infra
+(priority #4). The module sub-pages (`/sentiment`, `/watch`, `/weekly`, etc.)
+inherit the new color system and typography automatically but were not
+individually re-laid-out. No new "quant model" was added beyond reweighting
+Distresse — building an actual options/IV-based earnings-move model would
+need a real data source this app doesn't have yet (Alpha Vantage options is
+wired but unverified — see Roadblocks — and even if verified, that's implied
+move, not a historical-move distribution). Live visual verification in the
+browser was attempted but the dev server wasn't running in your own Terminal
+at the time (same as earlier this session) — `npx tsc --noEmit` came back
+clean (only the 2 pre-existing, unrelated `TickerHubClient.tsx` errors), and
+the change was committed, but you should give it a real look once
+`npm run dev` is running and tell me if anything reads wrong live.
+
 ## The honest inventory
 
 Verdict key: **KEEP** (real, working, leave it) · **FIX** (real seam, needs work) · **REBUILD** (currently fake/RNG, real data exists to replace it) · **SCRAP** (remove; no honest path to real without infra that doesn't exist yet) · **RESEARCH** (bigger build, needs a design spike before committing).
@@ -65,7 +157,7 @@ Verdict key: **KEEP** (real, working, leave it) · **FIX** (real seam, needs wor
 - `/hub` (Ticker Hub) — UI is solid; blocked only on the panels above, which are now unblocked.
 - `/models` — just a directory/readme page over the registry; fine as-is.
 - `/war-map` — handled earlier this session (killed a real infinite-refetch bug in `MiniFeed`; the power-plant "dots" are real, working data, just visually unlabeled — small polish item, not urgent).
-- `/dashboard` — need a fresh live check now that the dev-server reload loop is gone (last time I looked at it, it was mid-crash-loop, so I don't fully trust that read yet).
+- `/dashboard` — **redesigned 2026-09-13** into the one consolidated dashboard (live-models strip + embedded Stress Test + portfolio/allocator) — see the "Visual redesign" section above. Still needs your own live look once the dev server is running.
 
 ## Infrastructure fix — "history, done properly"
 
@@ -80,7 +172,8 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
 5. **Macro Tracker partial rebuild** (regime from FRED) — Distresse's own FRED T10Y2Y fetch (`fetchFredLatest` in `impl/distresse.ts`) is a reusable pattern/reference for this; consider factoring it into a shared FRED helper both models call instead of duplicating the fetch+cache logic when this priority is picked up.
 6. Live-verify Options (Alpha Vantage) and Insider (SEC EDGAR) now that keys are in and the dev server is stable. Insider is now PARTIALLY verified as a side effect of testing Distresse live (see Log) — a real SEC EDGAR call for NVDA correctly returned "no signal transactions," but Options/Alpha Vantage itself is still unverified.
 7. ~~Pull the fake Cascade Network + Allocator Ribbon off the default `/visuals` view~~ — done, committed. The real-holdings-ingestion work for a genuine Cascade Network rebuild, and a real data source for Allocator Ribbon, both remain open (see Roadblocks) — tracked, not half-built.
-8. Visual/interface pass on `/visuals` — now a two-panel page instead of four uneven ones. Worth doing properly once #4 (history log) gives both panels something real to scrub through, rather than redesigning around two single-snapshot cards now and redoing it again in a few days.
+8. Visual/interface pass on `/visuals` — now a two-panel page instead of four uneven ones. Worth doing properly once #4 (history log) gives both panels something real to scrub through, rather than redesigning around two single-snapshot cards now and redoing it again in a few days. Inherits the new design system's colors/typography automatically (see the redesign section above) but hasn't had its own structural pass yet.
+9. ~~**Dashboard redesign + trade-idea timeframe/catalyst**~~ — done 2026-09-13, out of the numbered order above since it was driven by direct, urgent user feedback rather than the audit's own priority queue. See "Visual redesign + trade-idea outlook semantics" above for the full record.
 
 ## Roadblocks (running log — I note these rather than quietly working around them badly)
 
@@ -104,6 +197,7 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
   rm ~/Desktop/whitewater-platform/src/components/AllocatorRibbon.tsx
   ```
   Same story for the `.next` cache if you want it cleared (`rm -rf .next && npm run dev`, same command I gave you earlier this session for the reload-loop) — I can't run destructive commands on your machine no matter how I ask, so anything genuinely deletion-shaped is yours to run, always.
+- **I can't live-verify a UI change in the browser unless `npm run dev` is already running in your own Terminal.** Tried again after this redesign pass — the built-in browser couldn't reach `http://localhost:3000` — meaning the dev server wasn't up at that moment, same as earlier this session. `npx tsc --noEmit` on the real repo came back clean for every file this pass touched (only the 2 pre-existing, unrelated `TickerHubClient.tsx` errors remain), and the change is committed, but nobody has actually looked at the redesigned dashboard rendered yet. Run `cd ~/Desktop/whitewater-platform && npm run dev`, open `http://localhost:3000/dashboard`, and tell me what looks wrong — I'll fix it live rather than guessing from source.
 
 ## Log
 
@@ -111,3 +205,4 @@ Several of the fixes above (Chaos replay, Dislocation Field replay, and arguably
 - **2026-09-13** — Distresse rebuilt on real data (FRED, WW-Factor, SEC EDGAR/WW-Insider, Incepta, Google News + FinBERT); `types.ts`, `ModelPanels.tsx`, `checks.ts` updated to match; `MiniFeed` fix from earlier this session also committed. `npx tsc --noEmit` on the real repo showed zero new errors from any of the four changed files (two pre-existing, unrelated errors remain in `TickerHubClient.tsx`, untouched). Verified live end to end via the real dev server: a `/stress-test` run on NVDA correctly returned real Macro/Valuation/Sentiment/Liquidity reads and correctly abstained on Factor/Positioning with honest, specific reasons; a run on WW-Factor's own `DEMO-A` confirmed the Factor dimension itself works when real data exists. Both commits pushed to the local `integration-check` branch (`07ace31`, `21d9f8a`) — not pushed to any remote (this repo has no remote configured that I've touched). Two real bugs/gaps surfaced by this live test and logged above rather than silently patched: the Entry & Exit `null` display bug, and WW-Factor's synthetic-demo-only coverage.
 - **2026-09-13** — Started Intra/Exitus rebuild, then reversed course after actually reading `intra-exitus-engine/` in full: it's a real, already-built quant engine, not RNG — corrected the plan's verdict on it rather than rebuilding something that didn't need rebuilding. Fixed the real `null`-display bug this session's own live test had surfaced (`IntraPanel`'s abstain check now uses `Number.isFinite`, survives the NaN→null JSON round-trip). Tried to refresh its month-stale export myself and hit a genuine environment wall on both sandboxes available to me (PyPI blocked on one, Tiingo blocked on the other) — logged with the exact command for you to run on your own machine instead of a half-working workaround. Committed the `IntraPanel.tsx` fix and this plan update.
 - **2026-09-13** — You asked me to update the Desktop folder and delete anything old. Pulled Cascade Network and Allocator Ribbon (100% fabricated, no real seam) off `/visuals` entirely — `VisualsClient.tsx`, `visuals/page.tsx`, and a stale `globals.css` comment updated to match, live-verified the page renders correctly with just the two real-seam panels. Tried to actually delete the two now-orphaned component files (and clear the stale `.next` cache) through the proper sanctioned request — refused outright by an automatic safety classifier, same "[Irreversible Local Destruction]" denial as the `.next`-cache attempt earlier this session. Did not try to route around it. Marked both orphaned files clearly and logged the exact two `rm` commands for you to run yourself, above. `npx tsc --noEmit` and `eslint` on every touched file: clean. Moving to priority #4 (history-log infrastructure for the `/visuals` replay fixes) next.
+- **2026-09-13** — You called the visuals cleanup pass "still gay... ai and childish" and the pass itself "rushed," and asked for a real redesign, an answer to what "long" means re: timeframe/earnings, and a timeframe selector — explicitly "take your time." Did real web research on trading/fintech dashboard design first (see "Visual redesign" section above for what it found and how it was applied), then: replaced the warm cream/coral theme with a cooler terminal-adjacent palette site-wide (`globals.css`, `ui.tsx`, `ModuleNav.tsx` — a `LiveDot` and `Tile` primitive added); rebuilt `/dashboard` into one consolidated page with a live-models status strip (Distresse/Intra-Exitus/Aurora/Incepta/WW-Factor, server-fetched, honestly labeled) and the Stress Test engine embedded directly; and added `IdeaTimeframe`/`IdeaCatalystType` to `TradeIdea` (`types.ts`) with a UI selector (`StressTestClient.tsx`) and real relevance-weighting in Distresse's `evaluate()` (`distresse.ts`) — an earnings-print bet now leans on news/positioning and de-emphasizes valuation/macro regime; defaults reproduce the original flat-average exactly, so no existing caller's output changes. You had separately deleted `AllocatorRibbon.tsx`/`CascadeNetwork.tsx` yourself (confirmed via `git status` before committing) — included in this commit. `npx tsc --noEmit` on the real repo: clean (same 2 pre-existing unrelated `TickerHubClient.tsx` errors, nothing new). Could not live-verify visually — dev server wasn't running in your Terminal at the time — logged in Roadblocks with what to run. Committed (`55b4dde`) to `integration-check`, not pushed to any remote. `/visuals` itself and the other module sub-pages were NOT restructured in this pass (see "What did NOT ship" above) — still open.
