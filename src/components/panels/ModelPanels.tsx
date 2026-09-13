@@ -150,7 +150,7 @@ export function IntraPanel({ p }: { p: EntryExitPlan }) {
   );
 }
 
-// ── Options / implied volatility — Tradier sandbox read ─────────────────────
+// ── Options / implied volatility — Alpha Vantage read ───────────────────────
 // This panel is DELIBERATELY separate from Entry & Exit and never merged
 // into it (see this task's spec, and TickerHubClient's VerdictCard comment
 // block for why it also never feeds conviction.ts): Entry & Exit's
@@ -159,30 +159,73 @@ export function IntraPanel({ p }: { p: EntryExitPlan }) {
 // context. `p` (Entry & Exit's plan) is optional and used ONLY to print one
 // extra sentence comparing the stop distance to the options-implied move —
 // it never changes any number this panel shows on its own.
+//
+// FORMERLY backed by Tradier's sandbox (see git history) — switched to
+// Alpha Vantage after the fund's owner discovered Tradier's sandbox now
+// requires full identity verification to sign up, contrary to the stale
+// 2014 blog post the earlier research had relied on. See
+// src/lib/whitewatch-data/alphavantage-options.js's header for the full,
+// honest research writeup, including a question this task explicitly asked
+// to be resolved and could NOT be resolved with certainty: whether Alpha
+// Vantage's options endpoint even works on a free (non-paid) API key at
+// all, or is gated behind a paid plan. `plan_gated` and `rate_limited`
+// below exist specifically because of that unresolved question.
 export function OptionsPanel({ o, p }: { o: OptionsSummary; p?: EntryExitPlan }) {
   return (
     <Card title="Options market — implied move" action={<StatusBadge status={o.status} />}>
       {/* Always-visible caveat — per this task's requirement that a member
-         sizing a real trade off this panel must see the delay/personal-use
-         caveat WHERE THEY'D READ IT, not buried in a code comment. Shown
-         regardless of status, including the abstention states, since even a
-         "no data" or "not applicable" card is still labeled Tradier
-         sandbox. */}
+         sizing a real trade off this panel must see the real terms WHERE
+         THEY'D READ IT, not buried in a code comment. Shown regardless of
+         status, including the abstention states, since even a "no data" or
+         "not applicable" card is still labeled Alpha Vantage.
+         Deliberately does NOT claim a specific "X minutes delayed" figure
+         the way the old Tradier banner did — no equivalently explicit,
+         directly-quoted freshness figure could be confirmed for Alpha
+         Vantage's HISTORICAL_OPTIONS endpoint (see alphavantage-options.js).
+         What IS said below (end-of-day dataset, "as of" a specific trading
+         day, ~25 requests/day platform-wide budget) are the things that
+         WERE confirmed. */}
       <div className="mb-4 border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-800 dark:text-sky-300">
-        Tradier SANDBOX data — quotes are <strong>15 minutes delayed</strong>, greeks/IV (via ORATS) can lag up to an
-        hour on top of that, and per Tradier&apos;s terms this feed is for the fund&apos;s own personal/internal use
-        only, never for redistribution. Do not use this alone to size a live trade.
+        Alpha Vantage <strong>HISTORICAL_OPTIONS</strong> data — an end-of-day dataset (
+        {o.quoteDate ? `as of ${o.quoteDate}` : "as of the most recent trading day Alpha Vantage returns"}), not a
+        live intraday feed. Alpha Vantage&apos;s free tier allows roughly <strong>25 requests/day, platform-wide</strong> —
+        this panel is cached for 24 hours per ticker specifically to protect that budget, so a repeat search on a
+        ticker already looked up today reuses the cached read rather than spending another request. Do not use this
+        alone to size a live trade.
       </div>
 
       {o.status === "not_configured" && (
-        <p className="text-sm text-muted">{o.reason ?? "Tradier sandbox isn't configured."}</p>
+        <p className="text-sm text-muted">{o.reason ?? "Alpha Vantage isn't configured."}</p>
+      )}
+
+      {o.status === "plan_gated" && (
+        <>
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Alpha Vantage says the options endpoint isn&apos;t available on this API key&apos;s plan — this is a
+            genuinely researched possibility for Alpha Vantage&apos;s free tier (see the code comment on this panel),
+            not a bug. Upgrading to a paid Alpha Vantage plan would be required to unlock this panel; retrying will
+            not change this outcome on its own.
+          </p>
+          {o.reason && <p className="mt-2 text-xs text-muted">Alpha Vantage&apos;s own message: &quot;{o.reason}&quot;</p>}
+        </>
+      )}
+
+      {o.status === "rate_limited" && (
+        <>
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Alpha Vantage&apos;s free-tier request limit was hit for this pull (roughly 25 requests/day,
+            platform-wide, shared across every member and every ticker). This is temporary — try again later, or
+            tomorrow once the daily quota resets.
+          </p>
+          {o.reason && <p className="mt-2 text-xs text-muted">Alpha Vantage&apos;s own message: &quot;{o.reason}&quot;</p>}
+        </>
       )}
 
       {o.status === "not_applicable" && (
         <p className="text-sm text-muted">{o.reason ?? `No listed options for ${o.ticker}.`}</p>
       )}
 
-      {o.status === "error" && <p className="text-sm text-rose-500">{o.reason ?? "Couldn't reach Tradier sandbox."}</p>}
+      {o.status === "error" && <p className="text-sm text-rose-500">{o.reason ?? "Couldn't reach Alpha Vantage."}</p>}
 
       {o.status === "no_data" && (
         <>
@@ -199,7 +242,7 @@ export function OptionsPanel({ o, p }: { o: OptionsSummary; p?: EntryExitPlan })
       {o.status === "ok" && (
         <>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Spot (delayed)" value={price(o.spot)} />
+            <Field label="Spot" value={price(o.spot)} />
             <Field label={`Expiration (${o.expirationBasis === "standard-monthly" ? "monthly" : "nearest listed"})`} value={o.expiration ?? dash} />
             <Field label="ATM strike / IV" value={`${o.atmStrike ?? dash} / ${pct(o.atmIv)}`} />
             <Field label="Days to expiration" value={String(o.daysToExpiration ?? dash)} />
@@ -233,8 +276,10 @@ export function OptionsPanel({ o, p }: { o: OptionsSummary; p?: EntryExitPlan })
 }
 
 function StatusBadge({ status }: { status: OptionsSummary["status"] }) {
-  if (status === "ok") return <Badge tone="neutral">LIVE (delayed)</Badge>;
+  if (status === "ok") return <Badge tone="neutral">LIVE (end-of-day)</Badge>;
   if (status === "error") return <Badge tone="down">FETCH ERROR</Badge>;
+  if (status === "plan_gated") return <Badge tone="warn">NOT ON THIS PLAN</Badge>;
+  if (status === "rate_limited") return <Badge tone="warn">RATE LIMITED</Badge>;
   if (status === "not_configured") return <Badge tone="warn">NOT CONFIGURED</Badge>;
   if (status === "not_applicable") return <Badge tone="neutral">N/A</Badge>;
   return <Badge tone="warn">NO DATA</Badge>;
@@ -248,7 +293,7 @@ function stopVsMoveNote(o: OptionsSummary, p?: EntryExitPlan): string | null {
   if (!p || Number.isNaN(p.stop) || o.spot == null || o.expectedMovePct == null) return null;
   const stopDistPct = Math.abs(p.stop - o.spot) / o.spot;
   const cmp = stopDistPct < o.expectedMovePct ? "inside" : "beyond";
-  return `For reference, Entry & Exit's stop (${p.stop}) sits ${(stopDistPct * 100).toFixed(1)}% from Tradier's delayed spot (${price(
+  return `For reference, Entry & Exit's stop (${p.stop}) sits ${(stopDistPct * 100).toFixed(1)}% from Alpha Vantage's spot (${price(
     o.spot
   )}) — ${cmp} the options market's implied ±${pct(o.expectedMovePct)} move to ${o.expiration}.`;
 }

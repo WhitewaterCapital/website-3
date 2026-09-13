@@ -117,12 +117,15 @@ async function fetchFactor(ticker: string): Promise<Breakdown["factor"]> {
   }
 }
 
-// Real Tradier-sandbox options/IV read — see /api/models/options and
-// lib/whitewatch-data/tradier-sandbox.js for the full source verification
-// writeup. Degrades to `null` on a network hiccup exactly like fetchWeekly/
-// fetchSentiment above; a genuine "no options for this ticker" or "not
-// configured" state is NOT this — those come back as a normal 200 with a
-// `status` field, which OptionsPanel renders honestly (see that component).
+// Real Alpha Vantage options/IV read — see /api/models/options and
+// lib/whitewatch-data/alphavantage-options.js for the full source
+// verification writeup (including the genuinely unresolved question of
+// whether Alpha Vantage's options endpoint even works on a free API key).
+// Degrades to `null` on a network hiccup exactly like fetchWeekly/
+// fetchSentiment above; a genuine "no options for this ticker", "not
+// configured", "not on this plan", or "rate limited" state is NOT this —
+// those come back as a normal 200 with a `status` field, which OptionsPanel
+// renders honestly (see that component).
 async function fetchOptions(ticker: string): Promise<OptionsSummary | null> {
   try {
     const res = await fetch(`/api/models/options?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
@@ -457,9 +460,11 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
 //   this "a low-predictability, research-grade RANK signal, not price
 //   targets".
 //
-// Also deliberately left out: the Tradier-sandbox options/implied-volatility
+// Also deliberately left out: the Alpha Vantage options/implied-volatility
 // read (OptionsPanel, below WeeklyCard) — a different reason from WW-Graph/
-// WW-Cascade's "no live data yet". Here the data IS live and real, but
+// WW-Cascade's "no live data yet". Here the data is real (when it resolves
+// at all — see alphavantage-options.js for the honest caveats about the
+// free tier's request budget and its unresolved plan-gating question), but
 // ATM implied vol / expected-move is a MAGNITUDE, not a directional opinion
 // (a straddle price can't be negative) — conviction.ts's ConvictionSlotInput
 // documents `score` as a SIGNED directional/quality read, and there is no

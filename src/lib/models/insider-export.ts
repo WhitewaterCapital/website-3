@@ -1,7 +1,7 @@
 // WW-INSIDER — website handoff contract for the SEC EDGAR Form 4 insider-
 // activity read. Mirrors the shape src/lib/whitewatch-data/edgar-sources.js
 // actually produces; the site types its read against this, same role
-// options-export.ts plays for the Tradier options integration and
+// options-export.ts plays for the Alpha Vantage options integration and
 // weekly-export.ts plays for WW-Weekly.
 //
 // THREE-WAY DISTINGUISHABLE STATUS (this task's core honesty requirement):

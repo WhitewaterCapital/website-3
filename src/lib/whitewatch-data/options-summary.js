@@ -1,8 +1,20 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Pure math over an already-fetched Tradier options chain — no network I/O in
-// this file on purpose, so the formulas below can be hand-verified against
+// Pure math over an already-fetched options chain — no network I/O in this
+// file on purpose, so the formulas below can be hand-verified against
 // constructed example payloads without a live API call (see the task's
-// constraint that this environment cannot reach sandbox.tradier.com).
+// constraint that this environment cannot reach the internet directly).
+//
+// VENDOR-AGNOSTIC BY DESIGN: this file was originally written against a
+// Tradier-sandbox chain and now also backs the Alpha Vantage integration
+// (src/lib/whitewatch-data/alphavantage-options.js) that replaced Tradier
+// after Tradier turned out to require full identity verification. Nothing
+// in this file changed for that switch — it was written to consume a
+// vendor-neutral `{ contracts: [{ strike, optionType, openInterest,
+// greeks: { mid_iv } }], spot, asOf, expiration, expirationBasis }` shape,
+// and Alpha Vantage's adapter maps its own (differently-named) response
+// fields into that exact shape rather than duplicating this math. See
+// alphavantage-options.js's header for what's real about the new source and
+// what's still uncertain.
 // See scripts/verify-options.mjs for the actual worked-example verification
 // (same "no jest/vitest, so a plain-node script asserts on constructed
 // payloads" convention as scripts/verify-conviction.mjs) — run it with
@@ -99,11 +111,11 @@ function putCallOiRatio(contracts) {
   return { ratio: putOi / callOi, callOi, putOi };
 }
 
-// Builds the full member-facing summary from a "ok"-status snapshot (see
-// tradier-sandbox.js's getOptionsSnapshot). Never called on a
-// not_applicable/no_data/error snapshot — the route handles those statuses
-// directly without reaching this function, so this function can assume
-// `contracts.length > 0` and a valid `spot`.
+// Builds the full member-facing summary from an "ok"-status snapshot (see
+// alphavantage-options.js's getOptionsSnapshot). Never called on a
+// not_applicable/no_data/plan_gated/rate_limited/error snapshot — the route
+// handles those statuses directly without reaching this function, so this
+// function can assume `contracts.length > 0` and a valid `spot`.
 export function summarizeChain({ symbol, asOf, expiration, expirationBasis, spot, contracts }) {
   const atmStrike = findAtmStrike(contracts, spot);
   const atmIv = atmStrike == null ? null : atmIvAtStrike(contracts, atmStrike);
