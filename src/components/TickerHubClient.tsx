@@ -19,12 +19,16 @@ import type { WeeklyForecast } from "@/lib/models/weekly-export";
 import type { SecurityAnalysis } from "@/lib/models/incepta-export";
 import type { OptionsSummary } from "@/lib/models/options-export";
 import type { FactorExposure, FactorDataProvenance } from "@/lib/models/factor-export";
+import type { GraphResidual, GraphDataProvenance } from "@/lib/models/graph-export";
+import type { ChaosReading } from "@/lib/models/chaos-export";
 import type { TickerSentimentResult } from "@/lib/sentiment/types";
 import { THIRTEEN_F_GAP_REASON, type InsiderReading } from "@/lib/models/insider-export";
 import {
   computeConviction,
   WEEKLY_FORECAST_SLOT,
   INSIDER_ACTIVITY_SLOT,
+  GRAPH_RESIDUAL_SLOT,
+  CASCADE_EXPOSURE_SLOT,
   MAX_SINGLE_MODEL_SWING,
   type ConvictionSlotInput,
 } from "@/lib/models/conviction";
@@ -59,6 +63,8 @@ type Breakdown = {
   options: OptionsSummary | null;
   factor: { covered: boolean; universeSize: number; dataProvenance: FactorDataProvenance; exposure: FactorExposure | null } | null;
   insider: InsiderReading | null;
+  graph: { covered: boolean; universeSize: number; dataProvenance: GraphDataProvenance | null; residual: GraphResidual | null } | null;
+  chaos: { covered: boolean; watchlistSize: number; provenance: "synthetic-demo" | "live" | null; reading: ChaosReading | null } | null;
 };
 
 async function fetchWeekly(ticker: string): Promise<Breakdown["weekly"]> {
@@ -111,6 +117,54 @@ async function fetchFactor(ticker: string): Promise<Breakdown["factor"]> {
       universeSize: Number(data.universeSize) || 0,
       dataProvenance: data.dataProvenance ?? "synthetic-demo",
       exposure: data.exposure ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// WW-GRAPH's mean-reversion residual read — same shape as fetchFactor above
+// (a small, static export the site reads through /api/models/graph, which
+// wraps lib/graph.ts's getGraphExport()). Degrades to `null` on a network
+// hiccup exactly like every other fetch* helper here. See
+// graphConvictionSlot() (below, in the Verdict section) for how this feeds
+// conviction.ts's GRAPH_RESIDUAL_SLOT.
+async function fetchGraph(ticker: string): Promise<Breakdown["graph"]> {
+  try {
+    const res = await fetch(`/api/models/graph?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (!data.synced) return null;
+    return {
+      covered: Boolean(data.covered),
+      universeSize: Number(data.universeSize) || 0,
+      dataProvenance: data.dataProvenance ?? null,
+      residual: data.residual ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// WW-CHAOS's intraday directional read — same shape as fetchGraph above (a
+// small, static export the site reads through /api/models/chaos, which
+// wraps lib/chaos.ts's getChaosExport()). Degrades to `null` on a network
+// hiccup exactly like every other fetch* helper here. See
+// cascadeConvictionSlot() (below, in the Verdict section) for how this
+// feeds conviction.ts's CASCADE_EXPOSURE_SLOT.
+async function fetchChaos(ticker: string): Promise<Breakdown["chaos"]> {
+  try {
+    const res = await fetch(`/api/models/chaos?ticker=${encodeURIComponent(ticker.trim().toUpperCase())}`, {
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (!data.synced) return null;
+    return {
+      covered: Boolean(data.covered),
+      watchlistSize: Number(data.watchlistSize) || 0,
+      provenance: data.provenance ?? null,
+      reading: data.reading ?? null,
     };
   } catch {
     return null;
@@ -182,6 +236,15 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
 
   const factorPromise = fetchFactor(ticker);
 
+  // WW-Graph and WW-Cascade are NOT equity-gated (unlike equityPromise/
+  // insiderPromise below) — their universes/watchlists are just a fixed
+  // list of tickers each engine happens to cover today, with no inherent
+  // equity-only restriction the way SEC Form 4 filings or fundamentals
+  // data have. Same fire-in-parallel, degrade-to-null-on-failure shape as
+  // weeklyPromise/factorPromise above.
+  const graphPromise = fetchGraph(ticker);
+  const chaosPromise = fetchChaos(ticker);
+
   // Form 4 insider filings only exist for SEC-registered equity issuers —
   // same asset-class gating as equityPromise, avoids a doomed lookup
   // (ticker directory just won't have "CL" or "EURUSD" in it) for a
@@ -199,7 +262,7 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
           .catch(() => ({ status: "unavailable", message: "Couldn't reach the equity engine." }))
       : Promise.resolve(null);
 
-  const [stressRes, weekly, equityRes, sentiment, options, factor, insider] = await Promise.all([
+  const [stressRes, weekly, equityRes, sentiment, options, factor, insider, graph, chaos] = await Promise.all([
     stressPromise,
     weeklyPromise,
     equityPromise,
@@ -207,6 +270,8 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
     optionsPromise,
     factorPromise,
     insiderPromise,
+    graphPromise,
+    chaosPromise,
   ]);
 
   return {
@@ -228,6 +293,8 @@ async function runBreakdown(ticker: string, assetClass: AssetClass, instrument: 
     options,
     factor,
     insider,
+    graph,
+    chaos,
   };
 }
 
@@ -427,14 +494,27 @@ function TickerBreakdown({ r }: { r: Breakdown }) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Verdict — one composite read built on top of Distresse + (where available)
-// WW-Weekly and Incepta, via conviction.ts's already-built computeConviction
-// (IMP-15). This card does NOT reimplement any scoring math — it only maps
-// each real model's already-existing fields onto conviction.ts's slot
-// contract and renders the result. WW-Graph and WW-Cascade are intentionally
-// left out (see conviction.ts's reserved GRAPH_RESIDUAL_SLOT /
-// CASCADE_EXPOSURE_SLOT): there is no live graph export or portfolio-holdings
-// data in this environment to back either one honestly, so no slot is wired
-// for them rather than feeding in placeholder numbers.
+// WW-Weekly, Incepta, WW-Insider, WW-Graph, and WW-Cascade, via conviction.ts's
+// already-built computeConviction (IMP-15). This card does NOT reimplement
+// any scoring math — it only maps each real model's already-existing fields
+// onto conviction.ts's slot contract and renders the result.
+//
+// WW-Graph and WW-Cascade were reserved-but-unwired placeholders
+// (GRAPH_RESIDUAL_SLOT / CASCADE_EXPOSURE_SLOT in conviction.ts) until both
+// engines' export seams (graph-export.ts / chaos-export.ts, read through
+// lib/graph.ts / lib/chaos.ts and this file's fetchGraph/fetchChaos, backed
+// by the new /api/models/graph and /api/models/chaos routes) existed with
+// real data behind them; both do now, so both are wired below — see
+// graphConvictionSlot() and cascadeConvictionSlot() further down for the
+// full per-slot reasoning (sign convention, scaling, and confidence). BOTH
+// exports currently report `data_provenance`/`provenance: "synthetic-demo"`
+// (graph-engine has no TIINGO_API_KEY configured in this environment;
+// chaos-engine has no live feed wired in at all — see each export's own
+// module-level HONESTY note) — the slot builders read that field and cap
+// confidence at SYNTHETIC_DEMO_CONFIDENCE_CAP accordingly rather than let a
+// synthetic reading carry the same weight a live one would. Nothing about
+// the wiring below needs to change when either export flips to "live" —
+// only the confidence ceiling each slot is then allowed to reach.
 //
 // baseScore / baseConfidence — from Distresse's existing StressVerdict:
 //   baseScore = v.conviction. conviction.ts's own ConvictionSlotInput doc
@@ -542,14 +622,144 @@ function insiderConvictionSlot(r: Breakdown): ConvictionSlotInput | null {
   return { modelId: INSIDER_ACTIVITY_SLOT, score, confidence };
 }
 
-// Honest accounting of which of the (up to 4) possible signals actually fed
+// Small local defensive bounds — conviction.ts's own rawSlotDelta() already
+// clamps `score`/`confidence` at its boundary (see that file's comment: "it
+// does not trust an out-of-range caller input to stay out-of-range"), so
+// these are belt-and-suspenders, not load-bearing. They exist here because,
+// unlike decile (bounded 1..10) or edgar-sources.js's own -100..100 output,
+// `residual_z` (graphConvictionSlot) and the uncertainty-derived confidence
+// (cascadeConvictionSlot) are NOT inherently bounded to the range this
+// module's formulas assume — a genuinely extreme z-score or a malformed
+// uncertainty reading should saturate cleanly at the documented limit
+// rather than produce a score conviction.ts then silently reinterprets.
+function clampScore(x: number): number {
+  return Math.max(-100, Math.min(100, x));
+}
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
+}
+
+// Confidence ceiling shared by WW-Graph and WW-Cascade while their exports
+// report `data_provenance`/`provenance: "synthetic-demo"` (see
+// graph-export.ts / chaos-export.ts's own HONESTY notes: a synthetic-demo
+// figure must never be presented with real-market confidence). 0.05 is
+// deliberately an order of magnitude below WW-Weekly's own provisional
+// floor (0.25, see weeklyConvictionSlot above) — small enough that even a
+// maximally-extreme synthetic reading (score = +/-100) contributes at most
+// (100 / 100) * MAX_SINGLE_MODEL_SWING * 0.05 = 0.4 composite points: still
+// visibly present in the "how this number was built" breakdown below (an
+// abstention-adjacent reading is shown, not hidden), but far too small to
+// move the rounded, displayed composite on its own. The moment either
+// export's provenance flips to "live" this cap simply stops applying to
+// that slot — no other code here changes.
+const SYNTHETIC_DEMO_CONFIDENCE_CAP = 0.05;
+
+// WW-Graph mean-reversion residual (GRAPH_RESIDUAL_SLOT, reserved by
+// conviction.ts). Sign convention: NOT re-derived here ad hoc — it is the
+// exact interpretation this codebase has already published once, in
+// DislocationField.tsx's (VIS-01) own quadrant read of this same export:
+// "x < 0 & significant reversion -> left behind and expected to recover"
+// (bullish) and "x > 0 & significant reversion -> run ahead and expected to
+// fade" (bearish). That framing in turn rests on graph-engine/ge/
+// residual.py's own docstring: `signal` is a cross-sectionally z-scored
+// trailing return, so a POSITIVE residual_z means this name's own recent
+// return ran ahead of what its graph neighbours implied — and reversion.py
+// fits an OU process to the residual's OWN history (Dickey-Fuller gated, see
+// that module's docstring) that predicts the excess should shrink back
+// toward its own typical level, i.e. FADE — a bearish read on the name
+// relative to its peer group. A negative residual_z inverts every step of
+// that. Wiring this slot to any other sign would give the one export two
+// contradictory meanings in two different parts of the site.
+//
+// Gated on `confidence === "significant"` AND `half_life_significant` —
+// the SAME statistical-reversion gate checks.ts's graphResidualPullThrough
+// requires before it will even report a half-life. A residual with
+// confidence "not_significant" or "insufficient" is a measured dislocation
+// with NO evidence it actually reverts; using it directionally would claim
+// more than the model itself does.
+const GRAPH_RESIDUAL_Z_FULL_SCALE = 3; // |residual_z| at which the slot saturates at +/-100 — see below
+const GRAPH_LIVE_CONFIDENCE = 0.35; // ceiling once data_provenance is "live" — see SYNTHETIC_DEMO_CONFIDENCE_CAP for the demo-mode cap
+
+function graphConvictionSlot(graph: Breakdown["graph"]): ConvictionSlotInput | null {
+  const residual = graph?.covered ? graph.residual : null;
+  if (!residual) return null;
+  if (residual.confidence !== "significant" || !residual.half_life_significant || residual.residual_z == null) {
+    return null;
+  }
+  // Full-scale anchor: |residual_z| = GRAPH_RESIDUAL_Z_FULL_SCALE (3 —
+  // roughly a 1-in-370 draw for a well-behaved z-score) maps to the maximum
+  // +/-100 slot score. checks.ts's own "alert" severity threshold (|z| >= 2,
+  // see graphResidualPullThrough) lands at a strong-but-not-maxed ~67/100
+  // under this scale — the intended relative ordering, so an "alert"-grade
+  // dislocation reads as a strong opinion without instantly saturating.
+  const score = clampScore((-residual.residual_z / GRAPH_RESIDUAL_Z_FULL_SCALE) * 100);
+  const confidence = graph?.dataProvenance === "live" ? GRAPH_LIVE_CONFIDENCE : SYNTHETIC_DEMO_CONFIDENCE_CAP;
+  return { modelId: GRAPH_RESIDUAL_SLOT, score, confidence };
+}
+
+// WW-Cascade intraday directional exposure (CASCADE_EXPOSURE_SLOT, reserved
+// by conviction.ts). `directional_probability` is chaos-engine's CHAOS-02
+// calibrated P(price rises) on a 1-15 minute horizon (see chaos-export.ts's
+// disclaimer, which MUST be shown wherever this data is surfaced — see
+// InsiderPanel-style honesty precedent) — converted to this module's signed
+// -100..100 scale the same way any calibrated P(up) becomes a signed score:
+// distance from the 0.5 coin-flip point, doubled onto the full +/-100 range
+// (p=1.0 -> +100, p=0.0 -> -100, p=0.5 -> 0, which the abstain-band gate
+// below never actually lets through unrounded).
+const CASCADE_LIVE_CONFIDENCE_CEILING = 0.4; // see below for why this sits just under WW-Weekly's 0.45 ceiling
+
+function cascadeConvictionSlot(chaos: Breakdown["chaos"]): ConvictionSlotInput | null {
+  const reading = chaos?.covered ? chaos.reading : null;
+  if (!reading) return null;
+  // `abstain` is the model's own confidence-band gate (calibrated
+  // probability inside [0.45, 0.55], or features not warmed up — see
+  // chaos-engine/chaos/directional.py's DirectionalConfig.abstain_band) —
+  // per chaos-export.ts's own HONESTY note, a directional lean must never be
+  // shown when this is true. `uncertainty == null` is treated the same way
+  // defensively: the model's predict() leaves probability/uncertainty unset
+  // together (same feature-warm-up mask), so this should already be caught
+  // by `abstain`, but this slot never derives a confidence number from a
+  // missing uncertainty read rather than assume one.
+  if (reading.abstain || reading.directional_probability == null || reading.uncertainty == null) {
+    return null;
+  }
+  const score = clampScore((reading.directional_probability - 0.5) * 200);
+  // `uncertainty` is the std of a small bagged ensemble's predict_proba
+  // (chaos-engine/chaos/directional.py's DirectionalModel.uncertainty) —
+  // each member's output lies in [0, 1], and the standard deviation of any
+  // variable confined to [0, 1] is bounded above by exactly 0.5 (attained
+  // only when the ensemble splits evenly between the two extremes), so
+  // `1 - uncertainty / 0.5` is a genuinely bounds-derived 0..1 "ensemble
+  // agreement" read, not an arbitrarily chosen rescale. It is then capped at
+  // CASCADE_LIVE_CONFIDENCE_CEILING (0.4) — deliberately just under
+  // WW-Weekly's own non-provisional ceiling (0.45) — because chaos-engine's
+  // directional.py module docstring calls this classifier out by name as "a
+  // STAND-IN, not an equivalent model" for the design's real causal
+  // dilated-TCN, whereas weekly-export's model is backtested with a
+  // reported rank IC; even a perfectly-agreeing ensemble of a documented
+  // stand-in should not out-rank a validated one.
+  const agreement = clamp01(1 - reading.uncertainty / 0.5);
+  const liveConfidence = agreement * CASCADE_LIVE_CONFIDENCE_CEILING;
+  const confidence = chaos?.provenance === "live" ? liveConfidence : Math.min(liveConfidence, SYNTHETIC_DEMO_CONFIDENCE_CAP);
+  return { modelId: CASCADE_EXPOSURE_SLOT, score, confidence };
+}
+
+// Honest accounting of which of the (up to 6) possible signals actually fed
 // the composite for THIS ticker, and why any that didn't are missing — an
-// equity ticker has 4 possible signals (Distresse + WW-Weekly + Incepta +
-// WW-Insider), a commodity/FX ticker has 2 (neither Incepta nor WW-Insider
-// cover non-equities at all, so neither is ever counted as "possible"
-// there, matching the "Not applicable" cards already shown below for that
-// case).
-function missingSignalReasons(r: Breakdown, hasWeekly: boolean, hasEquity: boolean, hasInsider: boolean): string[] {
+// equity ticker has 6 possible signals (Distresse + WW-Weekly + Incepta +
+// WW-Insider + WW-Graph + WW-Cascade), a commodity/FX ticker has 4 (neither
+// Incepta nor WW-Insider cover non-equities at all, so neither is ever
+// counted as "possible" there, matching the "Not applicable" cards already
+// shown below for that case — WW-Graph/WW-Cascade have no such asset-class
+// restriction, see runBreakdown's own comment on graphPromise/chaosPromise).
+function missingSignalReasons(
+  r: Breakdown,
+  hasWeekly: boolean,
+  hasEquity: boolean,
+  hasInsider: boolean,
+  hasGraph: boolean,
+  hasCascade: boolean,
+): string[] {
   const reasons: string[] = [];
   if (!hasWeekly) {
     if (!r.weekly) reasons.push("WW-Weekly hasn't exported yet.");
@@ -570,6 +780,22 @@ function missingSignalReasons(r: Breakdown, hasWeekly: boolean, hasEquity: boole
     else if (r.insider.status === "not_found") reasons.push(r.insider.message ?? `SEC has no CIK for ${r.ticker}.`);
     else if (r.insider.status === "unreachable") reasons.push(r.insider.message ?? "SEC EDGAR was unreachable for this ticker.");
     else reasons.push(`No open-market insider buying/selling for ${r.ticker} in the last ${r.insider.windowDays} days.`);
+  }
+  if (!hasGraph) {
+    if (!r.graph) reasons.push("WW-Graph hasn't exported yet.");
+    else if (!r.graph.covered) reasons.push(`WW-Graph has no coverage for ${r.ticker} (today's universe covers ${r.graph.universeSize} names).`);
+    else if (!r.graph.residual) reasons.push("WW-Graph is covered but has no residual row this run.");
+    else if (r.graph.residual.confidence === "insufficient") reasons.push("WW-Graph has too little residual history for this ticker yet (confidence: insufficient).");
+    else if (r.graph.residual.confidence === "not_significant" || !r.graph.residual.half_life_significant)
+      reasons.push("WW-Graph found a residual for this ticker but its reversion isn't statistically significant (Dickey-Fuller gate not cleared) — no directional read without it.");
+    else reasons.push("WW-Graph has no usable residual_z for this ticker this run.");
+  }
+  if (!hasCascade) {
+    if (!r.chaos) reasons.push("WW-Cascade (chaos-engine) hasn't exported yet.");
+    else if (!r.chaos.covered) reasons.push(`WW-Cascade has no coverage for ${r.ticker} (today's watchlist covers ${r.chaos.watchlistSize} names).`);
+    else if (!r.chaos.reading) reasons.push("WW-Cascade is covered but has no reading row this run.");
+    else if (r.chaos.reading.abstain) reasons.push("WW-Cascade abstained on direction for this ticker (calibrated probability too close to a coin flip, or features not warmed up).");
+    else reasons.push("WW-Cascade has no usable directional probability for this ticker this run.");
   }
   return reasons;
 }
@@ -635,6 +861,8 @@ function slotLabel(modelId: string): string {
   if (modelId === WEEKLY_FORECAST_SLOT) return "WW-Weekly";
   if (modelId === EQUITY_CONVICTION_SLOT) return "Incepta";
   if (modelId === INSIDER_ACTIVITY_SLOT) return "WW-Insider";
+  if (modelId === GRAPH_RESIDUAL_SLOT) return "WW-Graph";
+  if (modelId === CASCADE_EXPOSURE_SLOT) return "WW-Cascade";
   return modelId;
 }
 
@@ -651,6 +879,16 @@ function slotDetail(modelId: string, r: Breakdown): string {
     const s = r.insider?.summary;
     return s == null ? "no signal txns" : `${s.signalTransactionCount} txns, ${s.distinctInsiders} insider${s.distinctInsiders === 1 ? "" : "s"}`;
   }
+  if (modelId === GRAPH_RESIDUAL_SLOT) {
+    const res = r.graph?.residual;
+    if (!res || res.residual_z == null) return "residual n/a";
+    return `residual z ${res.residual_z.toFixed(2)}${res.half_life_days != null ? `, half-life ${res.half_life_days.toFixed(1)}d` : ""}${r.graph?.dataProvenance === "synthetic-demo" ? " (synthetic-demo)" : ""}`;
+  }
+  if (modelId === CASCADE_EXPOSURE_SLOT) {
+    const rd = r.chaos?.reading;
+    if (!rd || rd.directional_probability == null) return "probability n/a";
+    return `P(up) ${(rd.directional_probability * 100).toFixed(0)}%, "${rd.state_label}"${r.chaos?.provenance === "synthetic-demo" ? " (synthetic-demo)" : ""}`;
+  }
   return "";
 }
 
@@ -666,14 +904,16 @@ function VerdictCard({ r }: { r: Breakdown }) {
   const wSlot = weeklyConvictionSlot(r.weekly);
   const eSlot = equityConvictionSlot(r);
   const iSlot = insiderConvictionSlot(r);
-  const slots = [wSlot, eSlot, iSlot].filter((s): s is ConvictionSlotInput => s !== null);
+  const gSlot = graphConvictionSlot(r.graph);
+  const cSlot = cascadeConvictionSlot(r.chaos);
+  const slots = [wSlot, eSlot, iSlot, gSlot, cSlot].filter((s): s is ConvictionSlotInput => s !== null);
 
   const result = computeConviction(baseScore, baseConfidence, slots);
   const lean = directionalLean(r, result.composite);
 
-  const possible = r.assetClass === "equity" ? 4 : 2; // Distresse + WW-Weekly (+ Incepta + WW-Insider for equities only)
-  const available = 1 + (wSlot ? 1 : 0) + (eSlot ? 1 : 0) + (iSlot ? 1 : 0);
-  const missing = missingSignalReasons(r, Boolean(wSlot), Boolean(eSlot), Boolean(iSlot));
+  const possible = r.assetClass === "equity" ? 6 : 4; // Distresse + WW-Weekly + WW-Graph + WW-Cascade (+ Incepta + WW-Insider for equities only)
+  const available = 1 + (wSlot ? 1 : 0) + (eSlot ? 1 : 0) + (iSlot ? 1 : 0) + (gSlot ? 1 : 0) + (cSlot ? 1 : 0);
+  const missing = missingSignalReasons(r, Boolean(wSlot), Boolean(eSlot), Boolean(iSlot), Boolean(gSlot), Boolean(cSlot));
 
   const gaugeTone = result.composite >= LEAN_FULL_THRESHOLD ? "up" : result.composite < LEAN_TENTATIVE_THRESHOLD ? "down" : "neutral";
 
@@ -685,8 +925,9 @@ function VerdictCard({ r }: { r: Breakdown }) {
         <div className="space-y-3">
           <p className="text-sm text-foreground/80">
             {Math.round(result.composite)}/100 blends Distresse&apos;s stress-test conviction (currently rated &quot;{v.rating}
-            &quot;) with WW-Weekly&apos;s rank, Incepta&apos;s quality read, and WW-Insider&apos;s SEC Form 4 read
-            wherever each is actually available for {r.ticker}. It&apos;s a &quot;how much do the available models
+            &quot;) with WW-Weekly&apos;s rank, Incepta&apos;s quality read, WW-Insider&apos;s SEC Form 4 read,
+            WW-Graph&apos;s mean-reversion residual, and WW-Cascade&apos;s intraday directional read wherever each is
+            actually available for {r.ticker}. It&apos;s a &quot;how much do the available models
             agree&quot; reading on a 0-100 scale — not a
             probability of any specific price move, and not a buy/sell instruction on its own.
           </p>
@@ -839,12 +1080,17 @@ function FactorCard({ factor, ticker }: { factor: Breakdown["factor"]; ticker: s
 //      around models like WW-Weekly and Incepta, not around a signal whose
 //      noise floor is "one bad headline."
 //
-// This is the same kind of call already made once in this file — WW-Graph
-// and WW-Cascade are deliberately left out of VerdictCard (see that card's
-// own comment above) because there's no live data to back them honestly.
-// Here the data IS live and real; what's missing is validated evidence that
-// it belongs in a STRUCTURAL score. So: shown in full, individually
-// attributed, right below the Verdict — never folded into its number.
+// This is the same kind of call already made once in this file — the Alpha
+// Vantage options/IV read is deliberately left out of VerdictCard's
+// composite (see that card's own comment above) despite being live, real
+// data, because a magnitude (expected move) has no honest sign to assign on
+// conviction.ts's signed scale. Here the reason is different — sentiment IS
+// directional and DOES have an honest sign — but the underlying discipline
+// is the same: a real, live signal still doesn't automatically earn a slot
+// in a structural composite; it has to clear a bar (validated predictive
+// power, or here, an honestly groundable direction with real evidence
+// behind it) first. So: shown in full, individually attributed, right below
+// the Verdict — never folded into its number.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const sentimentLabelTone = {

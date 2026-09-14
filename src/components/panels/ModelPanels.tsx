@@ -12,6 +12,7 @@ import { ScoreBar } from "@/components/ScoreBar";
 import type { StressVerdict, EntryExitPlan } from "@/lib/models/types";
 import type { SecurityAnalysis } from "@/lib/models/incepta-export";
 import type { OptionsSummary } from "@/lib/models/options-export";
+import type { InstrumentFitResult } from "@/lib/models/instrument-fit";
 import type { InsiderReading, InsiderTransaction } from "@/lib/models/insider-export";
 
 const dash = "—";
@@ -316,6 +317,52 @@ function stopVsMoveNote(o: OptionsSummary, p?: EntryExitPlan): string | null {
   return `For reference, Entry & Exit's stop (${p.stop}) sits ${(stopDistPct * 100).toFixed(1)}% from Alpha Vantage's spot (${price(
     o.spot
   )}) — ${cmp} the options market's implied ±${pct(o.expectedMovePct)} move to ${o.expiration}.`;
+}
+
+// ── Instrument Fit — is THIS instrument well-suited to THIS thesis? ────────
+// A second, independent read alongside DistressePanel/OptionsPanel above —
+// see instrument-fit.ts's own header for why it isn't folded into either
+// (different question: is the WRAPPER well-matched to the thesis, not
+// whether the thesis itself is good — Distresse answers that one). Renders
+// `InstrumentFitResult.considerations` as a flat list of label/detail/tone
+// entries, deliberately never a score bar — instrument-fit.ts's own
+// contract says "never a single opaque instrument score." `flag`-toned
+// considerations get the same amber treatment OptionsPanel uses for its
+// plan_gated/rate_limited copy; `context`-toned ones stay neutral. Nothing
+// here is a verdict — see `f.summary`'s own "not a recommendation" close.
+export function InstrumentFitPanel({ f }: { f: InstrumentFitResult }) {
+  return (
+    <Card
+      title="Instrument fit — is this the right wrapper for the thesis?"
+      action={
+        <Badge tone={f.ivInformed ? "neutral" : "warn"}>
+          {f.ivInformed ? "IV-INFORMED" : "STRUCTURAL ONLY"}
+        </Badge>
+      }
+    >
+      <p className="text-sm text-foreground/80">{f.summary}</p>
+
+      <div className="mt-4 space-y-3">
+        {f.considerations.map((c, i) => (
+          <div
+            key={i}
+            className={`border-l-2 pl-3 ${c.tone === "flag" ? "border-amber-500/60" : "border-foreground/20"}`}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-foreground">{c.label}</span>
+              {c.tone === "flag" && <Badge tone="warn">WORTH WEIGHING</Badge>}
+            </div>
+            <p className="mt-1 text-sm text-foreground/80">{c.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-[11px] text-muted">
+        {f.generatedBy} — a read on the instrument chosen, separate from Distresse&apos;s read on the thesis; not
+        wired into Distresse&apos;s scoring. Research read, not investment advice.
+      </p>
+    </Card>
+  );
 }
 
 export function Field({

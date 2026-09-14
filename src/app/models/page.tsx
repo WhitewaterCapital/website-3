@@ -97,6 +97,11 @@ export default function ModelRegistryPage() {
                   Open Earnings Move →
                 </Link>
               )}
+              {m.id === "earnings-move" && (
+                <Link href="/trade-ideas" className="mt-2 inline-block text-xs font-medium text-accent hover:underline">
+                  Open Trade Ideas →
+                </Link>
+              )}
             </div>
           ))}
         </div>

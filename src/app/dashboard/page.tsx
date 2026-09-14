@@ -46,6 +46,7 @@ const MODULE_LINKS = [
   { href: "/visuals", name: "Visuals", blurb: "Dislocation field & chaos ribbon" },
   { href: "/models", name: "Model registry", blurb: "Every model, one page" },
   { href: "/performance", name: "Performance", blurb: "Attribution" },
+  { href: "/trade-ideas", name: "Trade Ideas", blurb: "Weekly + Smart Money + Earnings, unioned" },
 ];
 
 export default async function DeskPage() {

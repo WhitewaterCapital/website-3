@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui";
-import { DistressePanel, IntraPanel } from "@/components/panels/ModelPanels";
+import { DistressePanel, IntraPanel, InstrumentFitPanel } from "@/components/panels/ModelPanels";
 import type {
   StressVerdict,
   EntryExitPlan,
@@ -10,6 +11,9 @@ import type {
   IdeaTimeframe,
   IdeaCatalystType,
 } from "@/lib/models/types";
+import type { OptionsSummary } from "@/lib/models/options-export";
+import { assessInstrumentFit } from "@/lib/models/instrument-fit";
+import type { InstrumentFitResult } from "@/lib/models/instrument-fit";
 
 type Result = {
   distresse: StressVerdict;
@@ -47,8 +51,31 @@ const CATALYSTS: { value: IdeaCatalystType; label: string }[] = [
   { value: "technical-level", label: "Technical level" },
 ];
 
+// Reads an optional `?ticker=` query param so a caller (Trade Ideas'
+// "Run Stress Test ->" links, e.g.) can land a member here with the field
+// already filled in, instead of asking them to retype a symbol the app
+// already knows. Additive only: prefills the form, never auto-submits — the
+// member still reviews the idea's other fields (instrument, timeframe,
+// catalyst, thesis) and presses Run themselves. `useSearchParams` requires
+// a Suspense boundary around whatever reads it, hence the thin wrapper
+// below; StressTestClient's own exported name/shape is unchanged, so every
+// existing caller (this page, the dashboard's embedded copy) needs no edit.
 export function StressTestClient() {
-  const [ticker, setTicker] = useState("");
+  return (
+    <Suspense fallback={<StressTestClientInner initialTicker="" />}>
+      <StressTestClientWithQuery />
+    </Suspense>
+  );
+}
+
+function StressTestClientWithQuery() {
+  const searchParams = useSearchParams();
+  const initialTicker = (searchParams.get("ticker") ?? "").trim().toUpperCase();
+  return <StressTestClientInner initialTicker={initialTicker} />;
+}
+
+function StressTestClientInner({ initialTicker }: { initialTicker: string }) {
+  const [ticker, setTicker] = useState(initialTicker);
   const [instrument, setInstrument] = useState<Instrument>("long");
   const [timeframe, setTimeframe] = useState<IdeaTimeframe>("position");
   const [catalystType, setCatalystType] = useState<IdeaCatalystType>("general-thesis");
@@ -56,6 +83,17 @@ export function StressTestClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  // Instrument Fit (src/lib/models/instrument-fit.ts) -- an ADDITIVE second
+  // read, alongside Distresse/Entry & Exit above, on whether the chosen
+  // instrument itself (not the thesis) fits the stated timeframe/catalyst.
+  // Fetched from the same /api/models/options route OptionsPanel already
+  // uses elsewhere (TickerHubClient); failure here never blocks the
+  // Distresse/Entry & Exit results already rendered -- see the catch below.
+  // Only the assessed InstrumentFitResult is kept in state -- the raw
+  // OptionsSummary it was computed from isn't rendered separately here, so
+  // it's held in a local variable inside run() rather than state.
+  const [instrumentFit, setInstrumentFit] = useState<InstrumentFitResult | null>(null);
+  const [instrumentFitLoading, setInstrumentFitLoading] = useState(false);
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +103,7 @@ export function StressTestClient() {
       return;
     }
     setLoading(true);
+    setInstrumentFit(null);
     try {
       const res = await fetch("/api/models/stress", {
         method: "POST",
@@ -77,6 +116,37 @@ export function StressTestClient() {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+
+    // Instrument Fit's options read runs as a SEPARATE, additive fetch after
+    // the main Stress Test call above -- a slow or failed response here
+    // (Alpha Vantage's free tier is rate-limited to roughly 25 requests/day
+    // platform-wide, see options-export.ts's own header) must never block or
+    // blank out the Distresse/Entry & Exit panels, which is why it isn't
+    // awaited inside the try/finally that drives `loading`. It also doesn't
+    // depend on the stress call having succeeded -- instrument fit is a read
+    // on the idea's own fields (instrument/timeframe/catalyst) plus real
+    // options data, independent of Distresse's verdict on the thesis.
+    const resolvedTicker = ticker.trim().toUpperCase();
+    setInstrumentFitLoading(true);
+    try {
+      const oRes = await fetch(`/api/models/options?ticker=${encodeURIComponent(resolvedTicker)}`);
+      const oSummary = (await oRes.json()) as OptionsSummary;
+      setInstrumentFit(
+        assessInstrumentFit(
+          { ticker: resolvedTicker, instrument, thesis, timeframe, catalystType },
+          oSummary,
+        ),
+      );
+    } catch {
+      // A genuine fetch/parse failure here -- distinct from OptionsSummary's
+      // own "error" status, which is a valid, handled response body this
+      // route always returns 200 with. Leaves instrumentFit null so the UI
+      // simply omits the Instrument Fit panel rather than rendering a broken
+      // read.
+      setInstrumentFit(null);
+    } finally {
+      setInstrumentFitLoading(false);
     }
   }
 
@@ -180,6 +250,24 @@ export function StressTestClient() {
           <DistressePanel v={result.distresse} />
           <IntraPanel p={result.intra} />
         </div>
+      ) : null}
+
+      {/* Instrument Fit -- additive, independent of the grid above. See
+         instrument-fit.ts's header: this answers "is the chosen instrument
+         well-suited to this thesis," not "is the thesis good" (Distresse's
+         question), so it renders as its own block rather than folded into
+         either panel above. Shown once the options read resolves; a plain
+         loading line while it's in flight so the page doesn't visibly stall
+         on Alpha Vantage's real (and sometimes slow, rate-limited) fetch. */}
+      {result && instrumentFit ? (
+        <InstrumentFitPanel f={instrumentFit} />
+      ) : result && instrumentFitLoading ? (
+        <Card title="Instrument fit — is this the right wrapper for the thesis?">
+          <p className="text-sm text-muted">
+            Reading {ticker.trim().toUpperCase() || "the ticker"}&apos;s options market for a real instrument-fit
+            read…
+          </p>
+        </Card>
       ) : null}
     </div>
   );
