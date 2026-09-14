@@ -45,6 +45,22 @@ def env(name: str) -> str | None:
 # dates/actuals among the options checked — "FMP/Finnhub free (limited)".
 EARNINGS_CALENDAR_API_KEY_VAR = "FMP_API_KEY"
 
+# --- Tier B: analyst-estimate / SUE gate ------------------------------------
+# A SEPARATE, independently-gated env var — deliberately not reusing
+# FMP_API_KEY, because FMP's own free tier does NOT include analyst
+# estimates (confirmed 2026-09-14 against FMP's own pricing-plans page —
+# see adapters/alpha_vantage_estimates.py's docstring for the full
+# provider survey this session ran in response to
+# research/equity-model-research-dossier.md's "Earnings-surprise direction"
+# row). Alpha Vantage is the one vendor this survey found a credible free
+# path through, so this is its key, not FMP's. Unset -> every event's
+# eps_estimate_stdev/sue fields are honestly None with a stated reason
+# (see export.py); set -> adapters/alpha_vantage_estimates.py is called
+# per ticker (currently an honest stub, same as the FMP calendar adapter
+# was before this survey — see that module's docstring for exactly what's
+# left to implement on a network-capable machine).
+EARNINGS_ESTIMATES_API_KEY_VAR = "ALPHA_VANTAGE_API_KEY"
+
 # Same fixed 6-name universe every other cross-sectional screen in this repo
 # uses (WW-Factor's DEFAULT_LIVE_UNIVERSE, Smart Money Momentum's
 # SMART_MONEY_UNIVERSE, Intra/Exitus's covered set) — chosen for consistency
@@ -58,8 +74,8 @@ UNIVERSE: list[str] = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "KO"]
 # narrow enough that "upcoming" doesn't drift into "sometime this quarter".
 LOOKAHEAD_DAYS = 21
 
-SCHEMA_VERSION = "1.0.0"
-ENGINE_VERSION = "0.1.0"
+SCHEMA_VERSION = "1.1.0"
+ENGINE_VERSION = "0.2.0"
 
 DISCLAIMER = (
     "Earnings dates/sessions only. NOT a surprise-direction or price-move "
@@ -68,7 +84,11 @@ DISCLAIMER = (
     "estimate data this engine does not fetch) for why that's out of scope "
     "here. Any positioning read attached to an event (insider activity, "
     "factor momentum) is a separate, already-real signal from elsewhere in "
-    "this repo, not derived from the calendar data itself."
+    "this repo, not derived from the calendar data itself. A per-event "
+    "eps_estimate/eps_estimate_stdev/sue may be attached (see "
+    "EARNINGS_ESTIMATES_API_KEY_VAR) but SUE itself is null on every event "
+    "here by construction — every export from this engine is pre-print, "
+    "and SUE requires an actual EPS that does not exist yet."
 )
 
 

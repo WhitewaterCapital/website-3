@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "engine_version": "0.1.0",
-  "generated_at": "2026-09-14T12:33:04.026019+00:00",
+  "schema_version": "1.1.0",
+  "engine_version": "0.2.0",
+  "generated_at": "2026-09-14T19:47:38.790790+00:00",
   "as_of": "2026-09-14",
   "universe": [
     "AAPL",
@@ -12,7 +12,7 @@
     "KO"
   ],
   "lookahead_days": 21,
-  "disclaimer": "Earnings dates/sessions only. NOT a surprise-direction or price-move prediction \u2014 see research/equity-model-research-dossier.md's own 'Earnings-surprise direction' row (Medium confidence, needs analyst estimate data this engine does not fetch) for why that's out of scope here. Any positioning read attached to an event (insider activity, factor momentum) is a separate, already-real signal from elsewhere in this repo, not derived from the calendar data itself.",
+  "disclaimer": "Earnings dates/sessions only. NOT a surprise-direction or price-move prediction \u2014 see research/equity-model-research-dossier.md's own 'Earnings-surprise direction' row (Medium confidence, needs analyst estimate data this engine does not fetch) for why that's out of scope here. Any positioning read attached to an event (insider activity, factor momentum) is a separate, already-real signal from elsewhere in this repo, not derived from the calendar data itself. A per-event eps_estimate/eps_estimate_stdev/sue may be attached (see EARNINGS_ESTIMATES_API_KEY_VAR) but SUE itself is null on every event here by construction \u2014 every export from this engine is pre-print, and SUE requires an actual EPS that does not exist yet.",
   "data_provenance": "synthetic-demo",
   "events": [
     {
@@ -22,7 +22,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     },
     {
       "ticker": "MSFT",
@@ -31,7 +35,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     },
     {
       "ticker": "NVDA",
@@ -40,7 +48,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     },
     {
       "ticker": "JPM",
@@ -49,7 +61,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     },
     {
       "ticker": "XOM",
@@ -58,7 +74,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     },
     {
       "ticker": "KO",
@@ -67,7 +87,11 @@
       "eps_estimate": null,
       "eps_actual": null,
       "fiscal_period": null,
-      "source": "synthetic-demo"
+      "source": "synthetic-demo",
+      "eps_estimate_stdev": null,
+      "estimate_source": null,
+      "sue": null,
+      "sue_abstain_reason": "synthetic-demo event \u2014 no real estimate data attached by design"
     }
   ]
 }

@@ -8,6 +8,7 @@ pandas>=2.0
 numpy>=1.24
 scipy>=1.10          # bipower/tripower variation (jump indicator), gamma function
 scikit-learn>=1.3    # CHAOS-02's gradient-boosted classifier + isotonic calibration
+requests>=2.31        # chaos/adapters/alpaca_bars.py -- live path, gated on ALPACA_API_KEY_ID/ALPACA_API_SECRET_KEY
 
 # Test runner (this sandbox uses an offline pytest-compatible shim instead —
 # see ../../CLAUDE.md / the repo's test instructions).

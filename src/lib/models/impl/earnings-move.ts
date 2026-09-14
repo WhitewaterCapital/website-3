@@ -24,6 +24,37 @@ import { getEarningsExport } from "@/lib/earnings";
 // signals that were each already real and already live elsewhere in this
 // app, following exactly the pattern smart-money-momentum.ts set.
 //
+// TIER B UPDATE (same day, same session): the dossier's "poor free
+// coverage" verdict on analyst estimates was re-checked against current
+// (2026) provider terms rather than taken as permanently settled — see
+// earnings-engine/ee/adapters/alpha_vantage_estimates.py's docstring for
+// the full survey. Result: PARTIALLY real now, not still fully deferred.
+// Financial Modeling Prep (confirmed, its own pricing page) and Finnhub
+// (inconclusive — its docs are an unreadable JS SPA from this session's
+// tooling, third-party sources disagree) do not give a clean free path.
+// Alpha Vantage's EARNINGS_CALENDAR (forward consensus EPS) and EARNINGS
+// (trailing actual/estimate/surprise history) functions are well-evidenced
+// (not live-fetch-confirmed — see that adapter's docstring) as free, and
+// earnings-engine/ee/sue.py now has a fully real, fully tested
+// Standardized-Unexpected-Earnings calculator built against them. What
+// this model surfaces below (`estimateNote`) is real plumbing, not a
+// fabricated number: on every ticker it will currently read as "estimate
+// unavailable" (ALPHA_VANTAGE_API_KEY isn't set anywhere this repo has
+// been run, and even once it is, the adapter itself is still an honest
+// stub — same "wired but not network-exercised" state fmp_calendar.py was
+// in before this session) or, once an estimate IS wired up, "SUE
+// unavailable — not yet reported": WW-EARNINGS only ever exports PRE-print
+// events (report_date in the future), and SUE is mathematically undefined
+// before the actual EPS behind it exists. That is a structural property of
+// this calendar engine, not a missing-data gap — a future retrospective/
+// eval script is the right place to ever see a non-null SUE, not this
+// live "what's coming up" reading. Revision momentum (direction/magnitude
+// of recent estimate changes) remains DEFERRED, honestly: Alpha Vantage's
+// free endpoints only expose the CURRENT consensus estimate, not
+// point-in-time snapshots of how it moved — computing a revision requires
+// this engine to start storing its own weekly snapshots, which is real
+// infrastructure work nobody has built yet, not a data-access problem.
+//
 // HONESTY / ABSTENTION (same contract as smart-money-momentum.ts): a
 // ticker appears in `signals` ONLY when WW-EARNINGS has an event for it in
 // the current export. Insider positioning is attached when available and
@@ -31,7 +62,10 @@ import { getEarningsExport } from "@/lib/earnings";
 // ticker to appear, since "no signal Form 4 activity" is itself real
 // information, not a gap. Factor momentum is shown as separate context,
 // never blended into the directional lean, for the same reason
-// FactorPanel.tsx never feeds a raw beta into a signed score.
+// FactorPanel.tsx never feeds a raw beta into a signed score. The Tier-B
+// estimate/SUE read follows the identical rule: shown as separate context,
+// never blended into `lean`/`score`, and always carries its own stated
+// abstain reason rather than a bare null.
 //
 // `lean` is deliberately built from ONE directional ingredient (insider
 // net buy/sell) with an explicit rule stated in the note, not a fabricated
@@ -92,6 +126,36 @@ async function insiderPrePrintFor(ticker: string): Promise<InsiderRead> {
   };
 }
 
+// Tier-B estimate/SUE context — pure formatting over fields ee/export.py
+// already computed honestly (see earnings-export.ts's module comment).
+// Never recomputes SUE client-side; just reads what the export says and
+// states the abstain reason verbatim when there's nothing to show.
+function estimateNoteFor(event: {
+  eps_estimate: number | null;
+  eps_estimate_stdev: number | null;
+  estimate_source: string | null;
+  sue: number | null;
+  sue_abstain_reason: string | null;
+}): string {
+  if (event.sue !== null) {
+    // Not reachable by any export this engine can currently produce (see
+    // the header comment) but handled for real in case a future
+    // retrospective export ever populates it — never silently dropped.
+    return `SUE ${event.sue >= 0 ? "+" : ""}${event.sue.toFixed(2)} (source: ${event.estimate_source ?? "unknown"})`;
+  }
+  if (event.eps_estimate !== null && event.eps_estimate_stdev !== null) {
+    return (
+      `consensus EPS estimate $${event.eps_estimate.toFixed(2)} (trailing-surprise stdev ` +
+      `$${event.eps_estimate_stdev.toFixed(2)}, source: ${event.estimate_source ?? "unknown"}); ` +
+      `SUE unavailable (${event.sue_abstain_reason ?? "pending print"})`
+    );
+  }
+  if (event.eps_estimate !== null) {
+    return `consensus EPS estimate $${event.eps_estimate.toFixed(2)} (no usable surprise-stdev yet); SUE unavailable (${event.sue_abstain_reason ?? "pending print"})`;
+  }
+  return `consensus estimate unavailable (${event.sue_abstain_reason ?? "no analyst-estimates adapter configured"})`;
+}
+
 export const earningsMove: EquityModel = {
   meta: {
     id: "earnings-move",
@@ -100,7 +164,7 @@ export const earningsMove: EquityModel = {
     status: "beta",
     tagline: "Who has a print coming up, and what this app's own real signals say going into it.",
     description:
-      "Flags names in the fixed universe with a confirmed earnings print inside WW-EARNINGS' lookahead window, and attaches WW-Insider's real pre-print positioning and WW-Factor's real momentum context to each. Deliberately NOT a surprise-direction or price-move predictor — see earnings-engine/README.md and the equity-model research dossier's own 'Medium confidence, needs paid estimate data' verdict on that harder problem. Abstains honestly, never fabricates, when an input is missing.",
+      "Flags names in the fixed universe with a confirmed earnings print inside WW-EARNINGS' lookahead window, and attaches WW-Insider's real pre-print positioning, WW-Factor's real momentum context, and (where a configured estimates adapter allows it) a real consensus-EPS/SUE read to each. SUE is always pre-print null by construction — see earnings-engine/README.md and the equity-model research dossier's 'Earnings-surprise direction' row. Abstains honestly, never fabricates, when an input is missing.",
   },
 
   async read(dateISO: string): Promise<EquityReading> {
@@ -144,13 +208,14 @@ export const earningsMove: EquityModel = {
             : `${insider.netWord === "net buyers" ? "bullish" : "bearish"}-lean — the one directional real input (insider ${insider.netWord}, ${insider.buyCount} buy/${insider.sellCount} sell over ${INSIDER_PRE_PRINT_WINDOW_DAYS}d pre-print) points that way; factor momentum shown as separate context, not blended in`;
       }
       const insiderNote = "unavailable" in insider ? `insider positioning unavailable (${insider.unavailable})` : `insiders ${insider.netWord} pre-print`;
+      const estimateNote = estimateNoteFor(event);
 
       signals.push({
         symbol: event.ticker,
         score,
         note:
           `Print ${event.report_date}${event.session ? ` (${event.session})` : ""}. ${lean}. ` +
-          `${insiderNote}; ${momNote}. Calendar source: ${earningsExport.data_provenance}` +
+          `${insiderNote}; ${momNote}; ${estimateNote}. Calendar source: ${earningsExport.data_provenance}` +
           (earningsExport.data_provenance === "synthetic-demo" ? " — NOT a real date, demo only." : "."),
       });
     }
@@ -161,8 +226,9 @@ export const earningsMove: EquityModel = {
     const demoFlag = earningsExport.data_provenance === "synthetic-demo" ? " CALENDAR IS SYNTHETIC-DEMO — no FMP_API_KEY configured; dates below are not real." : "";
     const summary =
       `${signals.length} of ${EARNINGS_MOVE_UNIVERSE.length} tracked names have a print in the next ${earningsExport.lookahead_days} days ` +
-      `(as of ${earningsExport.as_of}).${demoFlag} Each carries WW-Insider's real pre-print positioning and WW-Factor's real momentum ` +
-      `context where available — calendar data only otherwise; not a surprise-direction or price-move prediction (see earnings-engine/README.md).`;
+      `(as of ${earningsExport.as_of}).${demoFlag} Each carries WW-Insider's real pre-print positioning, WW-Factor's real momentum ` +
+      `context, and a consensus-EPS/SUE read where available — calendar data only otherwise; not a surprise-direction or price-move ` +
+      `prediction (see earnings-engine/README.md).`;
 
     return { date: dateISO, breadth, signals, summary, generatedBy: "Earnings Move" };
   },

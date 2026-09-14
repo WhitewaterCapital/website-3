@@ -8,17 +8,60 @@ engine is sealed.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+
+def _load_dotenv() -> None:
+    """Load this engine's own .env into the environment without overwriting
+    anything already set. Duplicated (not imported) from the identical
+    loader in earnings-engine/factor-engine/weekly-engine/cascade-data-engine
+    — this engine is sealed, same convention as every other engine in this
+    repo. `.env*` is already covered by the repo root .gitignore, so no new
+    ignore rule was needed for chaos-engine/.env specifically."""
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
+
+
+def env(name: str) -> str | None:
+    v = os.environ.get(name, "").strip()
+    return v or None
+
+
 # --- Demo/synthetic watchlist -------------------------------------------------
-# No live data access exists here. The export runs in synthetic-demo mode
-# against a small illustrative watchlist so the JSON contract can be exercised
-# end to end. Real deployment would replace the synthetic panel generator in
-# export.py with a real intraday bar feed — nothing else changes.
+# Historically no live data access existed here at all, and the export ran in
+# synthetic-demo mode unconditionally against this small illustrative
+# watchlist so the JSON contract could be exercised end to end. As of the
+# live-gate added in chaos/adapters/alpaca_bars.py (see that module's
+# docstring for the full research trail on why Alpaca's free "Basic" Market
+# Data API plan was chosen), this same watchlist is also what gets requested
+# from the real feed when the gate below is configured — nothing about the
+# watchlist itself changes between the two modes.
 WATCHLIST: list[str] = ["AAPL", "MSFT", "NVDA", "SPY", "QQQ"]
 
 BARS_PER_DAY = 390  # a standard 6.5h US cash session at 1-minute bars
+
+# --- Live-data gate ------------------------------------------------------------
+# Two env vars, both required, exactly matching Alpaca's own two-header
+# authentication scheme (APCA-API-KEY-ID / APCA-API-SECRET-KEY — there is no
+# single-key auth mode for Alpaca's Market Data API, unlike the
+# single-API-key vendors gating every other engine in this repo). Checked in
+# export.py's build_export() the same way every other engine here gates on
+# its own vendor key(s) — see chaos/adapters/alpaca_bars.py for the adapter
+# itself and the confirmed evidence behind choosing Alpaca.
+ALPACA_API_KEY_ID_VAR = "ALPACA_API_KEY_ID"
+ALPACA_API_SECRET_KEY_VAR = "ALPACA_API_SECRET_KEY"
 
 
 @dataclass(frozen=True)

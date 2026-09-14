@@ -19,7 +19,15 @@ SEED = 21  # arbitrary, fixed — reproducible synthetic output run to run
 def synthetic_events(today: date, universe: list[str] | None = None) -> list[dict]:
     """One synthetic upcoming print per ticker, spread across the lookahead
     window on a fixed seed. `session` alternates deterministically rather
-    than randomly so repeated runs are trivially diffable in tests."""
+    than randomly so repeated runs are trivially diffable in tests.
+
+    Tier-B fields (eps_estimate_stdev, sue, sue_abstain_reason,
+    estimate_source) are present with the SAME honest-null shape export.py
+    gives a live event with no configured/working estimates adapter —
+    every event from this function is synthetic-demo already, so layering
+    a second kind of fakeness (a made-up estimate stdev) on top of it would
+    contradict the one rule this whole file exists to keep: synthetic data
+    stays visibly, structurally inert, never dressed up to look real."""
     universe = universe if universe is not None else UNIVERSE
     rng = random.Random(SEED)
     events = []
@@ -36,6 +44,10 @@ def synthetic_events(today: date, universe: list[str] | None = None) -> list[dic
                 "eps_actual": None,
                 "fiscal_period": None,
                 "source": "synthetic-demo",
+                "eps_estimate_stdev": None,
+                "estimate_source": None,
+                "sue": None,
+                "sue_abstain_reason": "synthetic-demo event — no real estimate data attached by design",
             }
         )
     return events

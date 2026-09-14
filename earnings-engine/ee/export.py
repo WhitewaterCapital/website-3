@@ -19,6 +19,20 @@ FMP_API_KEY in os.environ.
     website seam has something to read with no key configured, same as
     every other engine in this repo.
 The two provenances are never mixed within one export.
+
+TIER B (added 2026-09-14, see adapters/alpha_vantage_estimates.py's
+docstring for the full provider survey): every event, live or synthetic,
+additionally carries eps_estimate_stdev/estimate_source/sue/
+sue_abstain_reason. These are SEPARATELY gated on
+EARNINGS_ESTIMATES_API_KEY_VAR (Alpha Vantage) rather than FMP_API_KEY,
+because FMP's free tier does not cover analyst estimates at all — a
+calendar-only FMP key does not imply an estimates key is also usable, so
+the two gates must not be conflated. `sue` is null on literally every
+event this engine can currently produce, live or synthetic: every export
+is pre-print by construction (report_date always in the future — see
+config.LOOKAHEAD_DAYS), and SUE is undefined before the actual EPS behind
+it exists. See ee/sue.py for why that function still exists and is fully
+tested despite never firing a non-null result from this export today.
 """
 
 from __future__ import annotations
@@ -30,6 +44,7 @@ from pathlib import Path
 from .config import (
     env,
     EARNINGS_CALENDAR_API_KEY_VAR,
+    EARNINGS_ESTIMATES_API_KEY_VAR,
     UNIVERSE,
     LOOKAHEAD_DAYS,
     SCHEMA_VERSION,
@@ -39,6 +54,59 @@ from .config import (
     exports_dir,
 )
 from .synthetic import synthetic_events
+from .sue import compute_sue
+
+
+def _enrich_with_estimates(event: dict) -> dict:
+    """Attaches Tier-B fields to one LIVE event dict in place (and returns
+    it, for convenient use in a comprehension). Honestly abstains — never
+    fabricates a number — whenever the estimates adapter isn't configured
+    or isn't implemented yet, which today is unconditionally the case (see
+    adapters/alpha_vantage_estimates.py: it is a zero-network-call honest
+    stub, same as adapters/fmp_calendar.py was before this engine had any
+    live path at all)."""
+    api_key = env(EARNINGS_ESTIMATES_API_KEY_VAR)
+    if not api_key:
+        event["eps_estimate_stdev"] = None
+        event["estimate_source"] = None
+        event["sue"] = None
+        event["sue_abstain_reason"] = (
+            f"{EARNINGS_ESTIMATES_API_KEY_VAR} not set — no analyst-estimates "
+            f"adapter configured for this run"
+        )
+        return event
+
+    from .adapters.alpha_vantage_estimates import (
+        AlphaVantageEstimatesAdapter,
+        VendorNotConfiguredError,
+    )
+
+    adapter = AlphaVantageEstimatesAdapter()
+    try:
+        inputs = adapter.get_estimate_inputs(event["ticker"])
+    except (VendorNotConfiguredError, NotImplementedError) as exc:
+        event["eps_estimate_stdev"] = None
+        event["estimate_source"] = None
+        event["sue"] = None
+        event["sue_abstain_reason"] = f"estimates adapter unavailable: {exc}"
+        return event
+
+    # A real adapter response wins over whatever the calendar adapter put
+    # in eps_estimate (which, per fmp_calendar.py, FMP's free tier cannot
+    # actually populate anyway — see that adapter's docstring) since
+    # Alpha Vantage's EARNINGS_CALENDAR is the one source this engine has
+    # evidence is free for the forward consensus figure.
+    if inputs.get("eps_estimate") is not None:
+        event["eps_estimate"] = inputs["eps_estimate"]
+    event["eps_estimate_stdev"] = inputs.get("eps_estimate_stdev")
+    event["estimate_source"] = inputs.get("estimate_source")
+
+    sue, reason = compute_sue(
+        event.get("eps_actual"), event.get("eps_estimate"), event.get("eps_estimate_stdev")
+    )
+    event["sue"] = sue
+    event["sue_abstain_reason"] = reason
+    return event
 
 
 def build_export(today: date | None = None) -> dict:
@@ -47,13 +115,18 @@ def build_export(today: date | None = None) -> dict:
 
     if api_key:
         from .adapters.fmp_calendar import FmpCalendarAdapter
-
-        adapter = FmpCalendarAdapter()
         from datetime import timedelta
 
+        adapter = FmpCalendarAdapter()
         events = adapter.get_earnings(UNIVERSE, today, today + timedelta(days=LOOKAHEAD_DAYS))
+        events = [_enrich_with_estimates(e) for e in events]
         provenance = "live"
     else:
+        # synthetic_events() already ships the Tier-B fields with their own
+        # synthetic-appropriate honest-null shape (see synthetic.py) — not
+        # re-enriched here, so a synthetic export never accidentally reads
+        # as "we tried a real estimates lookup" when the whole calendar
+        # under it is fake.
         events = synthetic_events(today, UNIVERSE)
         provenance = "synthetic-demo"
 

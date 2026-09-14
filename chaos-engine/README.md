@@ -146,6 +146,14 @@ python3 -m chaos.export         # writes public/data/chaos/latest.json
                                  # and chaos-engine/exports/latest.json
 ```
 
+To run against real live data instead of the synthetic-demo panel: set both
+`ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY` in a gitignored
+`chaos-engine/.env` (free — sign up at https://alpaca.markets, a paper-only
+account is enough, no funding required) and re-run `python3 -m chaos.export`
+from a machine whose network can actually reach `data.alpaca.markets` — see
+`chaos/adapters/alpaca_bars.py`'s module docstring for confirmed evidence
+that this repo's own sandboxed shells cannot.
+
 (In the sandbox this was built in, tests are run instead via the repo's
 offline pytest-compatible shim: `python3 _pyshim/run_tests.py chaos-engine
 tests`.)
@@ -183,15 +191,28 @@ every export — nowhere is this quietly glossed over:
    `available: false` whenever nothing is supplied, and never fabricates a
    value.
 
-4. **Synthetic-demo data end to end.** There is no live intraday market data
-   feed wired into this repository. `chaos/export.py` generates a
+4. **Synthetic-demo by default; a real, gated live path now exists.**
+   `chaos/export.py` is now gated on `ALPACA_API_KEY_ID` /
+   `ALPACA_API_SECRET_KEY` (Alpaca Market Data API, free "Basic" plan — see
+   `chaos/adapters/alpaca_bars.py`'s module docstring for the full research
+   trail on why Alpaca was chosen over Twelve Data/Finnhub/Polygon-Massive/
+   unofficial Yahoo Finance, and exactly what was and wasn't confirmed
+   live this pass). With neither key set (the default in every sandbox
+   this repo has been built in — see that same docstring for the confirmed
+   network-wall evidence), `chaos/export.py` generates the original
    deterministic synthetic multi-session intraday panel (a repeating
    U-shaped volume curve, a mean-reverting price path with occasional
-   genuine jumps) so the full pipeline and the JSON contract can be
-   exercised honestly. The export's `provenance` field is stamped
-   `"synthetic-demo"` accordingly. Swapping in a real feed only touches the
-   bar-generation call site in `export.py` — nothing about CHAOS-01,
-   CHAOS-02, or CHAOS-03 assumes synthetic data.
+   genuine jumps) so the full pipeline and the JSON contract can still be
+   exercised honestly, and `provenance` is stamped `"synthetic-demo"`. With
+   both keys set, real 1-minute IEX bars are fetched instead and
+   `provenance` is stamped `"live"` — a fetch that fails or returns too
+   little history RAISES rather than silently publishing a partial or
+   mixed-provenance export (see `chaos/export.py::_live_bars_by_ticker`).
+   One real, load-bearing caveat even once live: the free plan's feed is
+   IEX only, not the SIP consolidated tape, so volume-derived components
+   (`volume_surprise`, `order_flow_imbalance`) reflect IEX's share of
+   volume, not total market volume — stated in `LIVE_DISCLAIMER` and the
+   adapter's docstring, not glossed over.
 
 5. **Single chronological split, not purged walk-forward CV.** CHAOS-02's
    `fit()` uses one chronological train/calibration split (calibration data
