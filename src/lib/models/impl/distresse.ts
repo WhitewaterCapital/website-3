@@ -17,6 +17,7 @@ import { keywordFallbackSentiment } from "@/lib/sentiment/keywordFallback";
 import { computeAggregate } from "@/lib/sentiment/aggregate";
 import type { Headline, TickerSentimentAggregate } from "@/lib/sentiment/types";
 import { fetchFredLatest } from "@/lib/fred";
+import { getUpcomingEarningsFor } from "@/lib/earnings";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Distresse — an EvaluatorModel (the adversarial stress test).
@@ -48,9 +49,17 @@ import { fetchFredLatest } from "@/lib/fred";
 //   - No fabricated "vs its own 5-year history" valuation comparison — Incepta
 //     doesn't export a historical percentile in this build, so the Valuation
 //     dimension is honestly labeled as an absolute-level read, not a trend.
-//   - No fabricated catalyst/earnings calendar — no free source for this
-//     exists (same gap /watch already documents), so it isn't a dimension
-//     here at all rather than being faked.
+//   - No fabricated catalyst/earnings calendar AS A SCORED DIMENSION.
+//     WW-EARNINGS (earnings-engine/, added 2026-09-14) now gives a real,
+//     honestly-gated print date for the fixed universe — but it's
+//     attached below as a plain-language devil's-advocate NOTE when
+//     catalystType === "earnings", not folded into the weighted average
+//     as a 7th score. Reason: the calendar fact alone has no natural
+//     bullish/bearish sign, and the one real directional ingredient this
+//     repo has for a pre-print read (insider Form 4 activity) is ALREADY
+//     the Positioning/crowding dimension above — scoring it a second time
+//     here would double-count the same real signal, not add a new one.
+//     See buildEarningsCatalystNote() below.
 //
 // Research grounding for the shape of the output (devil's advocate / tail
 // risks / bottom line) — see PLATFORM_REBUILD_PLAN.md's "Research grounding"
@@ -504,6 +513,41 @@ async function buildSentimentDimension(
   };
 }
 
+// ─── Earnings catalyst note — real WW-EARNINGS calendar, NOT a 7th score ───
+// Deliberately a plain-language devil's-advocate-style NOTE, not a Dimension:
+// see the module header above for why folding this into the weighted
+// average would double-count Positioning/crowding's already-real insider
+// signal. Only fires when the idea is explicitly framed as an earnings bet
+// (catalystType === "earnings") AND WW-EARNINGS has a matching event —
+// silent otherwise, same "say nothing rather than guess" discipline as
+// every dimension builder above.
+async function buildEarningsCatalystNote(
+  ticker: string,
+  catalystType: IdeaCatalystType,
+): Promise<string | undefined> {
+  if (catalystType !== "earnings") return undefined;
+
+  const upcoming = await getUpcomingEarningsFor(ticker).catch(
+    () => ({ status: "not_exported" as const }),
+  );
+
+  if (upcoming.status === "not_exported") {
+    return `This idea is framed around earnings, but WW-EARNINGS hasn't exported a calendar yet (no public/data/earnings/latest.json) — no confirmed print date to check this against.`;
+  }
+  if (upcoming.status === "none_scheduled") {
+    return `This idea is framed around earnings, but WW-EARNINGS' current export (${upcoming.data_provenance}) has no print scheduled for ${ticker} inside its lookahead window — double-check the date this thesis is actually betting on.`;
+  }
+
+  const demoFlag = upcoming.data_provenance === "synthetic-demo" ? " — SYNTHETIC-DEMO calendar, not a real date (no FMP_API_KEY configured yet)" : "";
+  const sessionTxt = upcoming.event.session ? ` (${upcoming.event.session})` : "";
+  return (
+    `WW-EARNINGS: ${ticker} has a print on ${upcoming.event.report_date}${sessionTxt}${demoFlag}, as of ${upcoming.as_of}. ` +
+    `No surprise-direction or price-move model is attached to this date — the Positioning/crowding dimension above already carries this ` +
+    `app's one real directional pre-print signal (insider Form 4 activity); read that dimension's note with this date in mind rather than ` +
+    `treating this line as a second, separate directional read.`
+  );
+}
+
 // ─── Outlook relevance — what "long"/"short" alone doesn't say ─────────────
 // The instrument (long/short/call/put/future) says direction. It says nothing
 // about the WINDOW the idea is meant to play out over — "long AAPL" as a
@@ -720,6 +764,11 @@ export const distresse: EvaluatorModel = {
     );
     if (idea.evidence?.flags?.length) {
       devils.push(`Incepta engine flags: ${idea.evidence.flags.join("; ")}.`);
+    }
+
+    const earningsCatalystNote = await buildEarningsCatalystNote(ticker, catalystType);
+    if (earningsCatalystNote) {
+      devils.push(earningsCatalystNote);
     }
 
     const missing = dims.filter((d) => !d.available).map((d) => d.label);

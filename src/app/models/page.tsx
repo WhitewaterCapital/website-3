@@ -92,6 +92,11 @@ export default function ModelRegistryPage() {
                   Open Smart Money Momentum →
                 </Link>
               )}
+              {m.id === "earnings-move" && (
+                <Link href="/earnings" className="mt-4 inline-block text-xs font-medium text-accent hover:underline">
+                  Open Earnings Move →
+                </Link>
+              )}
             </div>
           ))}
         </div>

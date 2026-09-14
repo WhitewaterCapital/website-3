@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "engine_version": "0.1.0",
+  "generated_at": "2026-09-14T12:33:04.026019+00:00",
+  "as_of": "2026-09-14",
+  "universe": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "JPM",
+    "XOM",
+    "KO"
+  ],
+  "lookahead_days": 21,
+  "disclaimer": "Earnings dates/sessions only. NOT a surprise-direction or price-move prediction \u2014 see research/equity-model-research-dossier.md's own 'Earnings-surprise direction' row (Medium confidence, needs analyst estimate data this engine does not fetch) for why that's out of scope here. Any positioning read attached to an event (insider activity, factor momentum) is a separate, already-real signal from elsewhere in this repo, not derived from the calendar data itself.",
+  "data_provenance": "synthetic-demo",
+  "events": [
+    {
+      "ticker": "AAPL",
+      "report_date": "2026-09-20",
+      "session": "amc",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    },
+    {
+      "ticker": "MSFT",
+      "report_date": "2026-09-28",
+      "session": "bmo",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    },
+    {
+      "ticker": "NVDA",
+      "report_date": "2026-09-28",
+      "session": "amc",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    },
+    {
+      "ticker": "JPM",
+      "report_date": "2026-10-05",
+      "session": "bmo",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    },
+    {
+      "ticker": "XOM",
+      "report_date": "2026-09-24",
+      "session": "amc",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    },
+    {
+      "ticker": "KO",
+      "report_date": "2026-09-30",
+      "session": "bmo",
+      "eps_estimate": null,
+      "eps_actual": null,
+      "fiscal_period": null,
+      "source": "synthetic-demo"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { distresse } from "./impl/distresse";
 import { intraExitus } from "./impl/intra-exitus";
 import { equityModel } from "./impl/equity";
 import { smartMoneyMomentum } from "./impl/smart-money-momentum";
+import { earningsMove } from "./impl/earnings-move";
 import { yourMacroAlgo } from "./impl/_template";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -29,12 +30,13 @@ export const models = {
   intraExitus,
   equity: equityModel,
   smartMoneyMomentum,
+  earningsMove,
 };
 
 // Typed rosters — live models, grouped by what they do. Generic UI (and any
 // future "run every macro model" logic) iterates these.
 export const macroModels: MacroModel[] = [macroTracker];
-export const equityModels: EquityModel[] = [equityModel, smartMoneyMomentum];
+export const equityModels: EquityModel[] = [equityModel, smartMoneyMomentum, earningsMove];
 export const evaluators: EvaluatorModel[] = [distresse];
 export const levelsModels: LevelsModel[] = [intraExitus];
 
@@ -45,6 +47,7 @@ export const MODELS: ModelMeta[] = [
   intraExitus.meta,
   equityModel.meta,
   smartMoneyMomentum.meta,
+  earningsMove.meta,
   yourMacroAlgo.meta, // planned — the reserved slot for your macro algo
 ];
 
