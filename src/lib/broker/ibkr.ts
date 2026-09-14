@@ -222,6 +222,13 @@ export class IbkrBroker implements BrokerAdapter {
       quantity: Math.abs(Number(t.size ?? 0)),
       priceUsd: Number(t.price ?? 0),
       executedAt: parseIbkrTradeTime(t.trade_time_r, t.trade_time),
+      // [Added 2026-09-14] IBKR's own order_ref is the real, durable place to
+      // record which strategy an order belongs to — set it yourself at
+      // order-entry time (Client Portal / TWS both let you set a custom
+      // order reference string) and it flows straight through here into the
+      // Allocator Ribbon's strategy-level P&L (src/lib/strategy-pnl.ts).
+      // Blank/absent order_ref becomes undefined, never a fabricated guess.
+      strategyTag: t.order_ref?.trim() || undefined,
     }));
   }
 

@@ -72,6 +72,15 @@ export type Trade = {
   priceUsd: number;
   executedAt: string; // ISO datetime
   proposalId?: string; // links back to the idea, if it came from one
+  // [Added 2026-09-14] Which strategy/model this trade belongs to — real
+  // attribution infrastructure for the Allocator Ribbon's strategy-level P&L
+  // (see src/lib/strategy-pnl.ts). Sourced from the broker's own order
+  // reference field when the broker is real (IbkrBroker maps IBKR's
+  // order_ref here) — there is no separate ledger to keep in sync; IBKR's
+  // own order records ARE the ledger. Undefined/blank means "untagged" —
+  // this is the honest default until orders are actually tagged, never
+  // silently bucketed as any specific real strategy.
+  strategyTag?: string;
 };
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { ModuleNav } from "@/components/ModuleNav";
 import { LineChart } from "@/components/LineChart";
 import { ExposureGauge } from "@/components/ExposureGauge";
 import { AllocatorPanel } from "@/components/AllocatorPanel";
+import { AllocatorRibbon } from "@/components/AllocatorRibbon";
 import { DisagreementPanel } from "@/components/DisagreementPanel";
 import { TickerHubClient } from "@/components/TickerHubClient";
 import { StressTestClient } from "@/components/StressTestClient";
@@ -48,8 +49,9 @@ const MODULE_LINKS = [
 
 export default async function DeskPage() {
   const broker = getBroker();
-  const [account, m_alloc, m_state, macro, factor, equity, intra] = await Promise.all([
+  const [account, trades, m_alloc, m_state, macro, factor, equity, intra] = await Promise.all([
     broker.getAccount(),
+    broker.getTrades(),
     getAllocExport(),
     getStateExport(),
     getMacroExport(),
@@ -264,14 +266,15 @@ export default async function DeskPage() {
           </div>
         </section>
 
-        {/* Capital allocator — IMP-05 — and model disagreement — IMP-16 */}
+        {/* Capital allocator — IMP-05 — real strategy P&L, and model disagreement — IMP-16 */}
         <section className="mt-14 mb-4">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="eyebrow">Allocator &amp; disagreement</h2>
-            <span className="text-xs text-muted">Why capital moved this week, and where models split.</span>
+            <span className="text-xs text-muted">Why capital moved this week, what&apos;s actually come back, and where models split.</span>
           </div>
           <div className="space-y-6">
             <AllocatorPanel alloc={m_alloc} state={m_state} />
+            <AllocatorRibbon trades={trades} brokerName={broker.name} />
             <DisagreementPanel />
           </div>
         </section>

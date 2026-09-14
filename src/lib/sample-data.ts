@@ -147,11 +147,18 @@ export const proposals: Proposal[] = [
   },
 ];
 
+// strategyTag on each sample trade below matches positionEntryContext's own
+// "originatingStrategy" for the same symbol (see that fixture's comment) —
+// consistent with existing sample data, not a new invented value. All four
+// are still-open buys with no closed round trip, so the real Allocator
+// Ribbon (src/lib/strategy-pnl.ts) correctly shows $0 REALIZED P&L for this
+// sample set even though it's tagged — an honest "nothing closed yet," not
+// an empty/broken-looking feature.
 export const trades: Trade[] = [
-  { id: "t1", symbol: "MSFT", side: "buy", quantity: 4, priceUsd: 402.1, executedAt: "2026-02-20T14:35:00Z" },
-  { id: "t2", symbol: "NVDA", side: "buy", quantity: 12, priceUsd: 118.4, executedAt: "2026-03-02T15:02:00Z" },
-  { id: "t3", symbol: "COST", side: "buy", quantity: 2, priceUsd: 872.0, executedAt: "2026-04-11T16:11:00Z" },
-  { id: "t4", symbol: "AMD", side: "buy", quantity: 9, priceUsd: 154.7, executedAt: "2026-05-01T14:20:00Z" },
+  { id: "t1", symbol: "MSFT", side: "buy", quantity: 4, priceUsd: 402.1, executedAt: "2026-02-20T14:35:00Z", strategyTag: "Distresse + Intra / Exitus" },
+  { id: "t2", symbol: "NVDA", side: "buy", quantity: 12, priceUsd: 118.4, executedAt: "2026-03-02T15:02:00Z", strategyTag: "Distresse + Intra / Exitus" },
+  { id: "t3", symbol: "COST", side: "buy", quantity: 2, priceUsd: 872.0, executedAt: "2026-04-11T16:11:00Z", strategyTag: "Distresse + Intra / Exitus" },
+  { id: "t4", symbol: "AMD", side: "buy", quantity: 9, priceUsd: 154.7, executedAt: "2026-05-01T14:20:00Z", strategyTag: "Distresse + Intra / Exitus" },
 ];
 
 // ---------------------------------------------------------------------------
