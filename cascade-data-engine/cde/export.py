@@ -32,20 +32,62 @@ compute_pressure` for real — this is not a placeholder call. Flow is
 estimated via shares-outstanding deltas against the PRIOR run's snapshot
 (`state/fund_snapshots.jsonl`, appended every run — see
 `append_fund_snapshots`, which mirrors graph-engine/ge/export.py's
-`append_history`). A fund with no prior snapshot (every fund, on this
-engine's first-ever run) gets `flow_dollars = NaN`, which `compute_pressure`
-already handles correctly on its own (that product is recorded in
+`append_history`). A fund with no prior snapshot AND no usable proxy inputs
+(see below) gets `flow_dollars = NaN`, which `compute_pressure` already
+handles correctly on its own (that product is recorded in
 `skipped_products`, never coerced to a fake zero flow) — no special-casing
-needed here. `typical_volume` is passed as an empty mapping: it is not
-sourced anywhere in this pass (see config.py's DISCLAIMER for why) and
-`compute_pressure` already handles a missing typical_volume the same
-honest way. The two provenances (live/synthetic-demo) are never mixed
-within one export.
+needed here.
+
+## What changed this pass (2026-09-14): NAV and typical_volume are now real,
+## live inputs on the LIVE path — not unconditionally NaN/empty anymore
+
+Two of this engine's own README-documented "still open" gaps are now wired
+for real, each independently gated so a vendor being unreachable/
+unconfigured degrades that ONE input honestly rather than blocking the
+whole export:
+
+  * **NAV per share** (`adapters/ishares_nav.py`, real, same
+    `CASCADE_LIVE_HOLDINGS` gate as the holdings CSV — see that module's
+    docstring for the confirmed research trail and its specific
+    lower-confidence-than-the-CSV parsing caveat). When available, it feeds
+    `estimate_flow_from_shares_outstanding`'s `nav_per_share` argument for
+    a fund with a usable prior-day snapshot (this closes the exact gap
+    config.py's DISCLAIMER used to describe: "even once a real second
+    day's shares-outstanding reading exists, ... needs a NAV to price the
+    delta ... currently passes nav_per_share=NaN"). For a fund with NO
+    usable prior-day snapshot (every fund's very first live run), a real
+    NAV is instead handed to `estimate_flow_proxy` ALONGSIDE the fund's own
+    most-recent price/volume from Alpaca (below) — a genuine, if
+    proxy-labelled (`is_proxy=True`), flow estimate on day one, rather than
+    an automatic NaN until day two.
+  * **typical_volume per constituent** (`adapters/alpaca_volume.py`, real,
+    gated on `ALPACA_API_KEY_ID`/`ALPACA_API_SECRET_KEY` — the SAME two env
+    var names `chaos-engine`'s own Alpaca adapter uses, intentionally, so
+    one key pair lights up both engines; see that module's docstring for
+    the full research trail). When configured and reachable, this replaces
+    the always-empty `{}` this engine used to pass unconditionally on the
+    live path. `compute_pressure`'s own documented contract already
+    handles a ticker missing from `typical_volume` (excluded leg, reason
+    recorded in `warnings`) — that contract is relied on here, not
+    reimplemented, for any ticker Alpaca doesn't return a bar for.
+
+NEITHER of these has been exercised successfully end to end in any sandbox
+this engine has been built in — both `ishares.com` and
+`data.alpaca.markets` hit the identical proxy-level policy denial
+documented throughout this engine and `PLATFORM_REBUILD_PLAN.md`'s
+Roadblocks. Each new adapter's own module docstring names this precisely.
+The two provenances for holdings/pressure (live/synthetic-demo) are still
+never mixed within one export; `typical_volume_provenance` is a SEPARATE,
+independently-reported field for exactly this reason — a "live" pressure
+export can legitimately carry `typical_volume_provenance: "not-configured"`
+if only the iShares side is working, and that combination is not an
+inconsistency, it's the honest state of two independently-gated inputs.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -78,6 +120,7 @@ from pressure import (  # noqa: E402
     HOLDINGS_COLUMNS,
     compute_pressure,
     estimate_flow_from_shares_outstanding,
+    estimate_flow_proxy,
 )
 
 
@@ -139,21 +182,35 @@ def _prior_snapshot(existing: list[dict], ticker: str, before: str) -> dict | No
     return max(candidates, key=lambda s: s["as_at_date"])
 
 
-def _build_from_live(today: date) -> tuple[pd.DataFrame, list[FlowEstimate], list[dict], list[str]]:
-    from .adapters.ishares_holdings import IsharesHoldingsAdapter, LiveFetchFailedError
+def _build_from_live(today: date) -> tuple[pd.DataFrame, list[FlowEstimate], list[dict], list[str], list[str]]:
+    from .adapters.ishares_holdings import (
+        IsharesHoldingsAdapter,
+        LiveFetchFailedError as HoldingsLiveFetchFailedError,
+    )
+    from .adapters.ishares_nav import (
+        IsharesNavAdapter,
+        LiveFetchFailedError as NavLiveFetchFailedError,
+    )
+    from .adapters.alpaca_volume import (
+        AlpacaDailyVolumeAdapter,
+        LiveFetchFailedError as AlpacaLiveFetchFailedError,
+    )
 
-    adapter = IsharesHoldingsAdapter()
+    holdings_adapter = IsharesHoldingsAdapter()
+    nav_adapter = IsharesNavAdapter()
+    alpaca_adapter = AlpacaDailyVolumeAdapter()
     existing_snapshots = _read_fund_snapshots(fund_snapshots_path())
 
     holdings_rows: list[dict] = []
     flows: list[FlowEstimate] = []
     new_snapshots: list[dict] = []
     skipped_funds: list[str] = []
+    extra_warnings: list[str] = []
 
     for fund in FUNDS:
         try:
-            snap = adapter.get_holdings(fund, as_of=today)
-        except LiveFetchFailedError as exc:
+            snap = holdings_adapter.get_holdings(fund, as_of=today)
+        except HoldingsLiveFetchFailedError as exc:
             skipped_funds.append(f"{fund.ticker}: {exc}")
             continue
 
@@ -176,24 +233,65 @@ def _build_from_live(today: date) -> tuple[pd.DataFrame, list[FlowEstimate], lis
             }
         )
 
+        # Real NAV per share — see adapters/ishares_nav.py's module
+        # docstring for the confirmed research trail. Genuinely optional: a
+        # failed or gated-off NAV fetch just degrades this fund's flow
+        # exactly the way it always degraded before this pass (NaN), never
+        # a fabricated NAV.
+        nav_per_share = float("nan")
+        try:
+            nav_snap = nav_adapter.get_nav(fund, as_of=today)
+            nav_per_share = nav_snap.nav_per_share
+        except NavLiveFetchFailedError as exc:
+            extra_warnings.append(
+                f"{fund.ticker}: NAV fetch failed ({exc}); flow stays NaN unless a "
+                f"proxy estimate below can be computed without it — it cannot, NAV is "
+                f"required for both the direct and proxy methods."
+            )
+
         prior = _prior_snapshot(existing_snapshots, fund.ticker, as_at)
         if prior is None or prior.get("shares_outstanding") is None or snap.shares_outstanding is None:
-            # No usable prior day (or missing NAV data to price the delta) —
-            # NaN flow, exactly the "unknown, not zero" contract
-            # estimate_flow_from_shares_outstanding documents. NAV per share
-            # isn't available from this CSV at all (see README's open items),
-            # so even WITH a prior day this engine cannot price the delta —
-            # flagged as flow_dollars=NaN via nav_per_share=NaN rather than
-            # guessing a price.
-            flows.append(
-                FlowEstimate(
+            # No usable prior day for the DIRECT (shares-outstanding-delta)
+            # method — every fund's very first live run hits this. Try the
+            # PROXY method (pressure.py::estimate_flow_proxy) instead of
+            # automatically leaving flow at NaN until day two: it needs a
+            # real NAV (above) plus the FUND's OWN most-recent price and
+            # share volume, sourced from Alpaca (adapters/alpaca_volume.py)
+            # — genuinely completes this README-documented gap for a
+            # first-ever run, not just day two onward.
+            flow: FlowEstimate | None = None
+            if not math.isnan(nav_per_share) and alpaca_adapter.is_configured():
+                try:
+                    fund_bars = alpaca_adapter.latest_price_and_volume([fund.ticker])
+                except AlpacaLiveFetchFailedError as exc:
+                    extra_warnings.append(
+                        f"{fund.ticker}: proxy flow not computed — Alpaca fetch for the "
+                        f"fund's own price/volume failed: {exc}"
+                    )
+                else:
+                    if fund.ticker in fund_bars:
+                        price, volume_shares = fund_bars[fund.ticker]
+                        flow = estimate_flow_proxy(
+                            fund.ticker,
+                            as_at,
+                            volume_shares=volume_shares,
+                            price=price,
+                            nav_per_share=nav_per_share,
+                        )
+                    else:
+                        extra_warnings.append(
+                            f"{fund.ticker}: proxy flow not computed — Alpaca returned no "
+                            f"daily bar for the fund's own ticker"
+                        )
+            if flow is None:
+                flow = FlowEstimate(
                     product=fund.ticker,
                     as_at_date=as_at,
                     flow_dollars=float("nan"),
                     method="shares_outstanding",
                     is_proxy=False,
                 )
-            )
+            flows.append(flow)
         else:
             flows.append(
                 estimate_flow_from_shares_outstanding(
@@ -201,7 +299,7 @@ def _build_from_live(today: date) -> tuple[pd.DataFrame, list[FlowEstimate], lis
                     as_at,
                     prior["shares_outstanding"],
                     snap.shares_outstanding,
-                    nav_per_share=float("nan"),  # not sourced — see README open items
+                    nav_per_share=nav_per_share,
                 )
             )
 
@@ -213,7 +311,57 @@ def _build_from_live(today: date) -> tuple[pd.DataFrame, list[FlowEstimate], lis
 
     holdings_df = pd.DataFrame(holdings_rows, columns=list(HOLDINGS_COLUMNS))
     append_fund_snapshots(new_snapshots)
-    return holdings_df, flows, new_snapshots, skipped_funds
+    return holdings_df, flows, new_snapshots, skipped_funds, extra_warnings
+
+
+def _typical_volume_for_live(holdings_df: pd.DataFrame) -> tuple[dict[str, float], str, list[str]]:
+    """Real `typical_volume` via Alpaca daily bars (adapters/alpaca_volume.py)
+    for the LIVE holdings path only — the synthetic-demo path already has
+    its own fabricated-on-a-fixed-seed typical_volume from synthetic.py,
+    clearly labeled by `data_provenance == "synthetic-demo"` at the top
+    level, so this function is never called for that path.
+
+    Returns `(typical_volume, provenance_label, warnings)`. Alpaca being
+    unconfigured or failing does NOT raise or block the export — the
+    holdings/flow side of this export can be genuinely live even when
+    Alpaca isn't reachable or configured, and `compute_pressure`'s own
+    documented contract already turns a missing `typical_volume` entry
+    into an honestly-excluded leg, not a crash. Never a fabricated number.
+    """
+    from .adapters.alpaca_volume import (
+        AlpacaDailyVolumeAdapter,
+        LiveFetchFailedError as AlpacaLiveFetchFailedError,
+    )
+
+    warnings: list[str] = []
+    adapter = AlpacaDailyVolumeAdapter()
+    if not adapter.is_configured():
+        warnings.append(
+            "typical_volume not sourced: ALPACA_API_KEY_ID/ALPACA_API_SECRET_KEY not "
+            "configured — see cde/adapters/alpaca_volume.py. compute_pressure() will "
+            "exclude every constituent-leg for lack of typical_volume, the same honest "
+            "abstention this engine used for this gap before this pass."
+        )
+        return {}, "not-configured", warnings
+
+    tickers = sorted(set(holdings_df["constituent"])) if not holdings_df.empty else []
+    if not tickers:
+        return {}, "not-configured", warnings
+
+    try:
+        tv = adapter.compute_typical_dollar_volume(tickers)
+    except AlpacaLiveFetchFailedError as exc:
+        warnings.append(f"typical_volume fetch from Alpaca failed: {exc}")
+        return {}, "alpaca-fetch-failed", warnings
+
+    missing = sorted(set(tickers) - set(tv))
+    if missing:
+        warnings.append(
+            f"typical_volume: Alpaca returned no usable daily bars for {missing!r}; "
+            f"those constituent-legs will be excluded by compute_pressure()."
+        )
+    provenance = "live-alpaca" if tv else "alpaca-empty"
+    return tv, provenance, warnings
 
 
 def build_export(today: date | None = None) -> dict:
@@ -221,20 +369,18 @@ def build_export(today: date | None = None) -> dict:
     live_enabled = env_flag(CASCADE_LIVE_HOLDINGS_VAR)
 
     skipped_funds: list[str] = []
+    extra_warnings: list[str] = []
     if live_enabled:
-        holdings_df, flows, snapshots, skipped_funds = _build_from_live(today)
+        holdings_df, flows, snapshots, skipped_funds, extra_warnings = _build_from_live(today)
         provenance = "live"
         funds_used = sorted({f.ticker for f in FUNDS} - {s.split(":")[0] for s in skipped_funds})
-        # typical_volume is not sourced anywhere in this pass for the LIVE
-        # path (see config.DISCLAIMER) — compute_pressure's own documented
-        # contract already handles a missing/empty typical_volume honestly
-        # (every affected leg excluded, NaN pressure, reason recorded in
-        # `warnings`), so passing {} here is correct, not a shortcut.
-        typical_volume: dict[str, float] = {}
+        typical_volume, tv_provenance, tv_warnings = _typical_volume_for_live(holdings_df)
+        extra_warnings.extend(tv_warnings)
     else:
         holdings_df, flows, snapshots, typical_volume = synthetic_snapshots(today)
         provenance = "synthetic-demo"
         funds_used = [f.ticker for f in FUNDS]
+        tv_provenance = "synthetic-demo"
 
     result = compute_pressure(holdings_df, flows, typical_volume=typical_volume)
 
@@ -250,9 +396,10 @@ def build_export(today: date | None = None) -> dict:
         "skipped_funds": skipped_funds,
         "disclaimer": DISCLAIMER,
         "data_provenance": provenance,
+        "typical_volume_provenance": tv_provenance,
         "pressure": pressure_records,
         "skipped_products": list(result.skipped_products),
-        "warnings": list(result.warnings),
+        "warnings": list(result.warnings) + extra_warnings,
     }
 
 
@@ -282,7 +429,8 @@ def main() -> int:
     n_usable = sum(1 for r in payload["pressure"] if r.get("pressure") is not None)
     print(
         f"Exported pressure for {n} constituents ({n_usable} with a non-NaN value) "
-        f"as of {payload['as_of']}, {payload['data_provenance']}."
+        f"as of {payload['as_of']}, {payload['data_provenance']} "
+        f"(typical_volume: {payload['typical_volume_provenance']})."
     )
     if payload["skipped_funds"]:
         print(f"  skipped funds: {payload['skipped_funds']}")

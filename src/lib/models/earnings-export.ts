@@ -1,4 +1,4 @@
-// WW-EARNINGS engine — website handoff contract (schema v1.1.0).
+// WW-EARNINGS engine — website handoff contract (schema v1.2.0).
 // Mirrors earnings-engine/ee/export.py. The site types its read against this.
 //
 // Calendar data only — deliberately NOT a surprise-direction or price-move
@@ -31,9 +31,32 @@
 // survey behind that choice) and are honestly null with a stated reason
 // whenever that key is unset or the adapter is still a stub, exactly like
 // every other honest-abstention field in this repo.
+//
+// TIER C — REVISION MOMENTUM (added 2026-09-14, see earnings-engine/
+// ee/revisions.py's module docstring for the full design): `revision_direction`
+// / `revision_pct` / `revision_abstain_reason` are another ADDITIVE
+// extension — a REAL day-over-day read of how ee/export.py's OWN recorded
+// `eps_estimate` for this ticker moved since the most recent PRIOR real run
+// on an earlier `as_of` date, computed from an append-only snapshot log
+// this engine writes to on every run (state/estimate_snapshots.jsonl, never
+// exposed directly — only these three derived fields reach the site).
+// Unlike Tier B this needs no vendor key at all: it works in EITHER
+// data_provenance ("live" or "synthetic-demo"), since it only ever compares
+// this engine's own two most recent recorded values for a ticker, not a
+// value from any external source. It IS gated on TIME rather than a key —
+// a ticker's first-ever recorded run (or a fresh snapshot log) has no prior
+// value to compare against, so `revision_direction`/`revision_pct` are
+// honestly null with a stated reason exactly then. This is the expected,
+// common case early in this log's life, not an error — `revision_abstain_reason`
+// says so plainly (e.g. "insufficient snapshot history — only 1 run(s)
+// recorded for this ticker, need at least 2") rather than leaving the UI to
+// guess. Same exactly-one-populated contract as the sue/sue_abstain_reason
+// pair above: `revision_abstain_reason` is non-null if and only if BOTH
+// `revision_direction` and `revision_pct` are null.
 
 export type EarningsDataProvenance = "synthetic-demo" | "live";
 export type EarningsSession = "bmo" | "amc" | "dmh" | null;
+export type EarningsRevisionDirection = "raised" | "lowered" | "unchanged" | null;
 
 export interface EarningsEvent {
   ticker: string;
@@ -51,6 +74,17 @@ export interface EarningsEvent {
   estimate_source: string | null; // vendor id for eps_estimate/eps_estimate_stdev, e.g. "alpha-vantage", or null if unavailable
   sue: number | null; // Standardized Unexpected Earnings — always null pre-print (see above)
   sue_abstain_reason: string | null; // why sue is null, stated plainly
+
+  // Tier C — see the module-level comment above. A REAL day-over-day
+  // comparison of this engine's own recorded eps_estimate for this ticker,
+  // never derived from a vendor's own "revision" field (no free vendor
+  // this engine has evaluated exposes one — see
+  // ee/adapters/alpha_vantage_estimates.py's docstring) and never
+  // fabricated when there isn't yet a second real snapshot to compare
+  // against (mirrors sue's exactly-one-populated abstain contract).
+  revision_direction: EarningsRevisionDirection; // "raised" / "lowered" / "unchanged", or null pre-second-run
+  revision_pct: number | null; // signed percent change vs. the most recent PRIOR recorded estimate, or null
+  revision_abstain_reason: string | null; // why revision_direction/revision_pct are null, stated plainly
 }
 
 export interface EarningsExport {

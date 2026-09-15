@@ -53,13 +53,15 @@ ee/
   config.py        universe, lookahead window, both live/synthetic gates (calendar + Tier B)
   synthetic.py      seeded deterministic fallback calendar (Tier B fields honestly null)
   sue.py             real, tested, dependency-free Standardized Unexpected Earnings calculator
+  revisions.py        Tier C — append-only estimate-snapshot log + real, tested revision-momentum computation
   adapters/
     fmp_calendar.py             FMP calendar adapter — honest stub, zero network calls, see its docstring
     alpha_vantage_estimates.py  Tier B estimates adapter — honest stub; docstring has the full provider survey
-  export.py          builds + writes the website JSON, attaching Tier B fields to every event
+  export.py          builds + writes the website JSON, attaching Tier B + Tier C fields to every event
 tests/
   test_export.py     synthetic-path + roundtrip + Tier-B-schema tests (all passing, stdlib only)
   test_sue.py        SUE calculator unit tests — abstention + real-computation cases (all passing, stdlib only)
+  test_revisions.py   snapshot-log append/read + revision-computation unit tests (all passing, stdlib only)
 ```
 
 ## Tier B — analyst estimates / SUE (added 2026-09-14)
@@ -113,9 +115,64 @@ retrospective/backtest script (the dossier's own "AUC, Brier" evaluation
 of this target) is the right place to ever see a non-null SUE, using the
 exact same tested `compute_sue()`.
 
-**Explicitly NOT built:** revision momentum (direction/magnitude of
-recent estimate changes). Alpha Vantage's free endpoints only expose the
-CURRENT consensus estimate, not point-in-time snapshots of how it moved —
-computing a revision needs this engine to start storing its own weekly
-snapshots over time, which is real infrastructure work, not a data-access
-problem, and wasn't in scope for this session.
+**Explicitly NOT built in the Tier-B pass:** revision momentum
+(direction/magnitude of recent estimate changes). Alpha Vantage's free
+endpoints only expose the CURRENT consensus estimate, not point-in-time
+snapshots of how it moved — computing a revision needs this engine to
+start storing its own weekly snapshots over time, which is real
+infrastructure work, not a data-access problem, and wasn't in scope for
+that session. **It was built in a follow-up pass the same day — see
+"Tier C" immediately below.**
+
+## Tier C — revision momentum (added 2026-09-14, same day, follow-up pass)
+
+Built directly in response to the gap the Tier-B pass above named and
+deliberately left open: `ee/revisions.py` now records this engine's own
+`eps_estimate` for every ticker, on EVERY export run — live or
+synthetic-demo alike, since a revision read only needs this engine's own
+prior recorded value, not a second vendor call — into a small, durable,
+append-only snapshot log (`state/estimate_snapshots.jsonl`, one line per
+(ticker, run), never written under `public/data/` since the website only
+ever needs the derived fields below, not the raw log). On every run it
+also computes a REAL day-over-day revision read — `revision_direction`
+("raised"/"lowered"/"unchanged") and `revision_pct` (signed percent change)
+— from that log's own PRIOR history, honestly abstaining with a stated
+`revision_abstain_reason` whenever there isn't yet a second real snapshot
+for that ticker to compare against.
+
+This is NOT gated on any vendor API key (unlike Tier B) — it needs no
+vendor, only this engine's own run history. It IS gated, functionally, on
+TIME: a ticker's first-ever recorded run has nothing to compare against
+yet, so abstention is the expected, common outcome early in this log's
+life, not a bug — exactly the same honest-abstention shape `sue` already
+has pre-print.
+
+The snapshot-log pattern is deliberately NOT invented fresh here — it
+mirrors two already-real precedents elsewhere in this repo:
+`cascade-data-engine/cde/export.py`'s `append_fund_snapshots()` /
+`_read_fund_snapshots()` / `_prior_snapshot()` (same same-day-rerun-
+replaces rule, same most-recent-prior-strictly-before-this-run lookup, same
+per-key rolling cap) and `graph-engine/ge/export.py`'s `append_history()`
+(the other real precedent for a small rotating JSONL log capped at N
+entries instead of a database). See `ee/revisions.py`'s module docstring
+for the full design rationale.
+
+**One small addition this required:** `ee/synthetic.py`'s synthetic-demo
+panel, which previously left `eps_estimate` permanently `None` on every
+event, now attaches a deterministic-per-(ticker, day) synthetic estimate
+(see `_synthetic_eps_estimate`) — otherwise revision momentum would have
+nothing to compute against in synthetic-demo mode at all, ever, which
+would make demo mode structurally unable to demonstrate the very feature
+this pass built. This is still clearly, structurally fake data (every
+event stays `"data_provenance": "synthetic-demo"`); see that function's
+own docstring for the full reasoning.
+
+**Verify it yourself in two commands** (simulates two days without
+waiting for a real one to pass — `EE_EXPORT_AS_OF_DATE` is a dev/test-only
+override, see `config.EARNINGS_EXPORT_AS_OF_DATE_VAR`'s docstring; unset in
+every normal run):
+
+```
+EE_EXPORT_AS_OF_DATE=2026-09-10 python -m ee.export   # first run: every ticker abstains (no prior history)
+EE_EXPORT_AS_OF_DATE=2026-09-11 python -m ee.export   # second run: real revision_direction/revision_pct
+```

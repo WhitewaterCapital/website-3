@@ -42,6 +42,7 @@ const MODULE_LINKS = [
   { href: "/weekly", name: "Weekly Ranking", blurb: "Cross-sectional rank" },
   { href: "/smart-money", name: "Smart Money Momentum", blurb: "Insider buying × momentum beta" },
   { href: "/earnings", name: "Earnings Move", blurb: "Upcoming prints × pre-print positioning" },
+  { href: "/kalman", name: "Kalman Pairs", blurb: "Self-tuning cointegration / stat-arb" },
   { href: "/war-map", name: "WHITEWATCH", blurb: "Geopolitical conflict monitor" },
   { href: "/visuals", name: "Visuals", blurb: "Dislocation field & chaos ribbon" },
   { href: "/models", name: "Model registry", blurb: "Every model, one page" },

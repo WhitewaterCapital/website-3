@@ -61,6 +61,22 @@ EARNINGS_CALENDAR_API_KEY_VAR = "FMP_API_KEY"
 # left to implement on a network-capable machine).
 EARNINGS_ESTIMATES_API_KEY_VAR = "ALPHA_VANTAGE_API_KEY"
 
+# --- Tier C: revision-momentum date override (testing/dev only) ------------
+# `main()` in export.py normally exports "as of" the real `date.today()`,
+# same as every other engine's CLI entrypoint in this repo. Revision
+# momentum (ee/revisions.py) is inherently a day-over-day signal — it needs
+# two runs on two different `as_of` dates before it has anything real to
+# compare, which a real cron running once a day naturally provides over
+# time. To verify that logic (or backfill/demo it) without waiting for
+# actual calendar days to pass, main() optionally reads this env var and,
+# if set, uses it as `today` instead of the real date. Unset in every
+# normal run (including every deployed/scheduled one) — this is a manual
+# override a human sets in a shell for one-off testing, not something
+# export.py ever sets itself, and build_export()'s own `today` PARAMETER
+# (what tests use directly) is unaffected by this var either way — it only
+# changes what main() passes when nothing else specifies a date.
+EARNINGS_EXPORT_AS_OF_DATE_VAR = "EE_EXPORT_AS_OF_DATE"
+
 # Same fixed 6-name universe every other cross-sectional screen in this repo
 # uses (WW-Factor's DEFAULT_LIVE_UNIVERSE, Smart Money Momentum's
 # SMART_MONEY_UNIVERSE, Intra/Exitus's covered set) — chosen for consistency
@@ -74,8 +90,8 @@ UNIVERSE: list[str] = ["AAPL", "MSFT", "NVDA", "JPM", "XOM", "KO"]
 # narrow enough that "upcoming" doesn't drift into "sometime this quarter".
 LOOKAHEAD_DAYS = 21
 
-SCHEMA_VERSION = "1.1.0"
-ENGINE_VERSION = "0.2.0"
+SCHEMA_VERSION = "1.2.0"
+ENGINE_VERSION = "0.3.0"
 
 DISCLAIMER = (
     "Earnings dates/sessions only. NOT a surprise-direction or price-move "
@@ -88,7 +104,13 @@ DISCLAIMER = (
     "eps_estimate/eps_estimate_stdev/sue may be attached (see "
     "EARNINGS_ESTIMATES_API_KEY_VAR) but SUE itself is null on every event "
     "here by construction — every export from this engine is pre-print, "
-    "and SUE requires an actual EPS that does not exist yet."
+    "and SUE requires an actual EPS that does not exist yet. A per-event "
+    "revision_direction/revision_pct (see ee/revisions.py) is also "
+    "attached — a REAL day-over-day read of this engine's own "
+    "consensus-estimate snapshot history, honestly null with a stated "
+    "reason (revision_abstain_reason) until at least two real runs on two "
+    "different as_of dates exist for that ticker, which will be the case "
+    "for most runs early in this log's life."
 )
 
 
@@ -105,3 +127,21 @@ def exports_dir() -> Path:
     d = engine_root() / "exports"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def state_dir() -> Path:
+    # Small, durable, append-only history — NOT written under public/data/
+    # (the website never reads this directly, only the already-computed
+    # revision fields in latest.json) and NOT a database. Same role,
+    # same location convention, as cascade-data-engine/cde/config.py's
+    # state_dir()/fund_snapshots_path() and graph-engine's
+    # public/data/graph/history.jsonl rotation — see ee/revisions.py's
+    # module docstring for why this engine follows those two precedents
+    # rather than inventing a third pattern.
+    d = engine_root() / "state"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def estimate_snapshots_path() -> Path:
+    return state_dir() / "estimate_snapshots.jsonl"

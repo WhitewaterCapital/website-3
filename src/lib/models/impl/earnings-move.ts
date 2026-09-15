@@ -21,8 +21,9 @@ import { getEarningsExport } from "@/lib/earnings";
 // (PLATFORM_REBUILD_PLAN.md, "Research grounding") already settled on when
 // it hit the same missing-real-signal problem for a different feature.
 // Nothing here is a new statistical model; it is a new COMBINATION of three
-// signals that were each already real and already live elsewhere in this
-// app, following exactly the pattern smart-money-momentum.ts set.
+// (now four — see TIER C below) signals that were each already real and
+// already live elsewhere in this app or in this engine's own history,
+// following exactly the pattern smart-money-momentum.ts set.
 //
 // TIER B UPDATE (same day, same session): the dossier's "poor free
 // coverage" verdict on analyst estimates was re-checked against current
@@ -48,12 +49,24 @@ import { getEarningsExport } from "@/lib/earnings";
 // before the actual EPS behind it exists. That is a structural property of
 // this calendar engine, not a missing-data gap — a future retrospective/
 // eval script is the right place to ever see a non-null SUE, not this
-// live "what's coming up" reading. Revision momentum (direction/magnitude
-// of recent estimate changes) remains DEFERRED, honestly: Alpha Vantage's
-// free endpoints only expose the CURRENT consensus estimate, not
-// point-in-time snapshots of how it moved — computing a revision requires
-// this engine to start storing its own weekly snapshots, which is real
-// infrastructure work nobody has built yet, not a data-access problem.
+// live "what's coming up" reading.
+//
+// TIER C UPDATE (same day, same session, built right after Tier B):
+// revision momentum (direction/magnitude of recent estimate changes) was
+// NOT deferred after all — earnings-engine/ee/revisions.py now records
+// this engine's own eps_estimate for every ticker on every export run
+// (live OR synthetic-demo — see that module's docstring for why this needs
+// no vendor at all) into an append-only snapshot log, and computes a REAL
+// day-over-day revision read from that log's own PRIOR history once a
+// second real run exists. `revisionNote` below is, like `estimateNote`,
+// real plumbing over an honestly-computed field, never a fabricated
+// number: on this engine's FIRST-EVER run for a given ticker (the common,
+// expected state early in this log's life) it reads as "revision momentum
+// unavailable (insufficient snapshot history...)" — not a bug, the same
+// honest-abstention shape SUE has pre-print. Once at least two real runs
+// on two different `as_of` dates exist, it reads as a real, signed percent
+// change ("consensus estimate raised/lowered N% vs. this engine's own
+// prior recorded run").
 //
 // HONESTY / ABSTENTION (same contract as smart-money-momentum.ts): a
 // ticker appears in `signals` ONLY when WW-EARNINGS has an event for it in
@@ -63,8 +76,9 @@ import { getEarningsExport } from "@/lib/earnings";
 // information, not a gap. Factor momentum is shown as separate context,
 // never blended into the directional lean, for the same reason
 // FactorPanel.tsx never feeds a raw beta into a signed score. The Tier-B
-// estimate/SUE read follows the identical rule: shown as separate context,
-// never blended into `lean`/`score`, and always carries its own stated
+// estimate/SUE read and the Tier-C revision-momentum read follow the
+// identical rule: each shown as its own separate context line, never
+// blended into `lean`/`score`, and each always carries its own stated
 // abstain reason rather than a bare null.
 //
 // `lean` is deliberately built from ONE directional ingredient (insider
@@ -156,6 +170,28 @@ function estimateNoteFor(event: {
   return `consensus estimate unavailable (${event.sue_abstain_reason ?? "no analyst-estimates adapter configured"})`;
 }
 
+// Tier-C revision-momentum context — same pure-formatting rule as
+// estimateNoteFor: reads what earnings-engine/ee/revisions.py already
+// computed honestly (see earnings-export.ts's module comment for the full
+// Tier-C contract), never recomputes it client-side, and states the
+// abstain reason verbatim rather than a bare "unavailable" when there
+// isn't yet a second real snapshot to compare against — which is the
+// expected, common state for a ticker's first-ever recorded run.
+function revisionNoteFor(event: {
+  revision_direction: "raised" | "lowered" | "unchanged" | null;
+  revision_pct: number | null;
+  revision_abstain_reason: string | null;
+}): string {
+  if (event.revision_direction !== null && event.revision_pct !== null) {
+    if (event.revision_direction === "unchanged") {
+      return `consensus estimate unchanged vs. this engine's own prior recorded run (revision momentum)`;
+    }
+    const sign = event.revision_pct >= 0 ? "+" : "";
+    return `consensus estimate ${event.revision_direction} ${sign}${event.revision_pct.toFixed(1)}% vs. this engine's own prior recorded run (revision momentum)`;
+  }
+  return `revision momentum unavailable (${event.revision_abstain_reason ?? "no prior recorded run for this ticker yet"})`;
+}
+
 export const earningsMove: EquityModel = {
   meta: {
     id: "earnings-move",
@@ -164,7 +200,7 @@ export const earningsMove: EquityModel = {
     status: "beta",
     tagline: "Who has a print coming up, and what this app's own real signals say going into it.",
     description:
-      "Flags names in the fixed universe with a confirmed earnings print inside WW-EARNINGS' lookahead window, and attaches WW-Insider's real pre-print positioning, WW-Factor's real momentum context, and (where a configured estimates adapter allows it) a real consensus-EPS/SUE read to each. SUE is always pre-print null by construction — see earnings-engine/README.md and the equity-model research dossier's 'Earnings-surprise direction' row. Abstains honestly, never fabricates, when an input is missing.",
+      "Flags names in the fixed universe with a confirmed earnings print inside WW-EARNINGS' lookahead window, and attaches WW-Insider's real pre-print positioning, WW-Factor's real momentum context, a real consensus-EPS/SUE read (where a configured estimates adapter allows it), and a real day-over-day revision-momentum read (where this engine has recorded at least two runs for that ticker) to each. SUE is always pre-print null by construction — see earnings-engine/README.md and the equity-model research dossier's 'Earnings-surprise direction' row. Abstains honestly, never fabricates, when an input is missing.",
   },
 
   async read(dateISO: string): Promise<EquityReading> {
@@ -209,13 +245,14 @@ export const earningsMove: EquityModel = {
       }
       const insiderNote = "unavailable" in insider ? `insider positioning unavailable (${insider.unavailable})` : `insiders ${insider.netWord} pre-print`;
       const estimateNote = estimateNoteFor(event);
+      const revisionNote = revisionNoteFor(event);
 
       signals.push({
         symbol: event.ticker,
         score,
         note:
           `Print ${event.report_date}${event.session ? ` (${event.session})` : ""}. ${lean}. ` +
-          `${insiderNote}; ${momNote}; ${estimateNote}. Calendar source: ${earningsExport.data_provenance}` +
+          `${insiderNote}; ${momNote}; ${estimateNote}; ${revisionNote}. Calendar source: ${earningsExport.data_provenance}` +
           (earningsExport.data_provenance === "synthetic-demo" ? " — NOT a real date, demo only." : "."),
       });
     }
@@ -227,8 +264,8 @@ export const earningsMove: EquityModel = {
     const summary =
       `${signals.length} of ${EARNINGS_MOVE_UNIVERSE.length} tracked names have a print in the next ${earningsExport.lookahead_days} days ` +
       `(as of ${earningsExport.as_of}).${demoFlag} Each carries WW-Insider's real pre-print positioning, WW-Factor's real momentum ` +
-      `context, and a consensus-EPS/SUE read where available — calendar data only otherwise; not a surprise-direction or price-move ` +
-      `prediction (see earnings-engine/README.md).`;
+      `context, a consensus-EPS/SUE read where available, and a day-over-day revision-momentum read where this engine has recorded ` +
+      `enough runs — calendar data only otherwise; not a surprise-direction or price-move prediction (see earnings-engine/README.md).`;
 
     return { date: dateISO, breadth, signals, summary, generatedBy: "Earnings Move" };
   },

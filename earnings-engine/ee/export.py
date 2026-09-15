@@ -33,6 +33,21 @@ is pre-print by construction (report_date always in the future — see
 config.LOOKAHEAD_DAYS), and SUE is undefined before the actual EPS behind
 it exists. See ee/sue.py for why that function still exists and is fully
 tested despite never firing a non-null result from this export today.
+
+TIER C — REVISION MOMENTUM (added 2026-09-14, see ee/revisions.py's module
+docstring for the full design rationale and its two mirrored precedents):
+every event, live or synthetic, additionally carries revision_direction/
+revision_pct/revision_abstain_reason — a REAL day-over-day read of how
+THIS ENGINE'S OWN recorded eps_estimate for that ticker has moved, computed
+from an append-only snapshot log this export writes to on every run
+(state/estimate_snapshots.jsonl). Unlike Tier B, this is NOT gated on any
+vendor API key at all — it needs no vendor, only this engine's own history
+of its own runs, live-sourced or synthetic-sourced alike. It IS gated,
+functionally, on TIME: a fresh log (or a ticker's first appearance in it)
+has nothing to compare against yet, so revision_direction/revision_pct are
+honestly null with a stated reason on every ticker's first-ever run — this
+is expected, not a bug, and resolves itself the moment a second real run
+happens on a later as_of date. See ee/revisions.py for the full contract.
 """
 
 from __future__ import annotations
@@ -45,6 +60,7 @@ from .config import (
     env,
     EARNINGS_CALENDAR_API_KEY_VAR,
     EARNINGS_ESTIMATES_API_KEY_VAR,
+    EARNINGS_EXPORT_AS_OF_DATE_VAR,
     UNIVERSE,
     LOOKAHEAD_DAYS,
     SCHEMA_VERSION,
@@ -55,6 +71,7 @@ from .config import (
 )
 from .synthetic import synthetic_events
 from .sue import compute_sue
+from .revisions import record_and_compute_revisions
 
 
 def _enrich_with_estimates(event: dict) -> dict:
@@ -109,7 +126,19 @@ def _enrich_with_estimates(event: dict) -> dict:
     return event
 
 
-def build_export(today: date | None = None) -> dict:
+def build_export(today: date | None = None, snapshots_path: Path | None = None) -> dict:
+    """`snapshots_path` overrides the Tier-C snapshot log location (default:
+    config.estimate_snapshots_path(), the real engine-side log) — exists
+    purely so a caller (a test, a one-off backfill script) can point this at
+    an isolated file instead of the real one, the same optional-override
+    shape `write_export`'s own `paths` argument already uses for the same
+    reason. No existing test in this engine passes it (see tests/test_export.py,
+    deliberately left untouched by this change), so those tests continue to
+    read/write the real state/estimate_snapshots.jsonl exactly as they did
+    the moment Tier C was added \u2014 harmless: every one of them pins
+    today=date(2026, 9, 14), so repeated test runs replace that one
+    same-day entry rather than accumulating unbounded rows (see
+    append_snapshots's same-day-rerun-replaces rule)."""
     today = today if today is not None else date.today()
     api_key = env(EARNINGS_CALENDAR_API_KEY_VAR)
 
@@ -129,6 +158,14 @@ def build_export(today: date | None = None) -> dict:
         # under it is fake.
         events = synthetic_events(today, UNIVERSE)
         provenance = "synthetic-demo"
+
+    # TIER C: record this run's own eps_estimate for every event (live or
+    # synthetic — see this module's header comment) into the append-only
+    # snapshot log, and attach a real revision-momentum read computed
+    # against that log's PRIOR history. Runs for every event regardless of
+    # provenance — revision momentum is an internal, self-referential
+    # signal about this engine's own history, not a vendor-gated one.
+    events = record_and_compute_revisions(events, today.isoformat(), path=snapshots_path)
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -163,7 +200,16 @@ def write_export(payload: dict, paths: list[Path] | None = None) -> list[Path]:
 
 
 def main() -> int:
-    payload = build_export()
+    # See config.EARNINGS_EXPORT_AS_OF_DATE_VAR's docstring: unset in every
+    # normal/deployed run, this only exists so a human can simulate a
+    # day-over-day run pair for revision-momentum testing without waiting
+    # for a real day to pass. build_export()'s own `today` parameter (what
+    # every test in tests/ uses directly) is unaffected by this env var —
+    # it only changes what THIS entrypoint passes when nothing else does.
+    date_override = env(EARNINGS_EXPORT_AS_OF_DATE_VAR)
+    today = date.fromisoformat(date_override) if date_override else None
+
+    payload = build_export(today=today)
     written = write_export(payload)
     print(f"Exported {len(payload['events'])} events (as of {payload['as_of']}, {payload['data_provenance']}).")
     for w in written:

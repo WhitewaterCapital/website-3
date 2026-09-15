@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-14T15:38:03.771633+00:00",
+  "generated_at": "2026-09-14T21:26:30.701707+00:00",
   "as_of": "2026-09-14",
   "funds": [
     "IVV",
@@ -16,6 +16,7 @@
   "skipped_funds": [],
   "disclaimer": "Mechanical flow-pressure estimate per quant-infra/cascade/pressure.py's documented functional form (pressure = sum over funds holding a name of weight * fund_flow / typical_daily_dollar_volume). Two inputs are structurally incomplete as shipped, and pressure is honestly NaN wherever they are: (1) fund flow needs a SECOND day's shares-outstanding reading to diff against (see state/fund_snapshots.jsonl) \u2014 a single run never has one; (2) typical_volume per constituent is not sourced at all in this pass (this platform's own volume source, Tiingo, is blocked from every sandbox this engine has been built in exactly like the holdings feed itself \u2014 see cde/adapters/ishares_holdings.py's module docstring). This is honest abstention, not a bug: see the skipped_products/warnings fields on every export for exactly which constituent-legs were excluded and why, per pressure.py's own contract.",
   "data_provenance": "synthetic-demo",
+  "typical_volume_provenance": "synthetic-demo",
   "pressure": [
     {
       "constituent": "AAPL",

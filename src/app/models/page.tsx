@@ -102,6 +102,11 @@ export default function ModelRegistryPage() {
                   Open Trade Ideas →
                 </Link>
               )}
+              {m.id === "kalman-pairs" && (
+                <Link href="/kalman" className="mt-4 inline-block text-xs font-medium text-accent hover:underline">
+                  Open Kalman Pairs →
+                </Link>
+              )}
             </div>
           ))}
         </div>
