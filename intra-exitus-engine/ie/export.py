@@ -16,15 +16,30 @@ comes back as an abstain plan (confidence "insufficient") — never a fabricated
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 from ie import __version__ as ENGINE_VERSION  # type: ignore
-from ie.adapters.prices_tiingo import TiingoClient
 from ie.config import HISTORY_START, UNIVERSE
 from ie.pipeline import PipelineConfig, plan_for_ticker
 from ie.pit import bars_to_frame
 from ie.regime.classifier import RegimeModel, build_dataset
+
+
+def _price_client() -> tuple[object, str]:
+    """Live Tiingo when `TIINGO_API_KEY` is set; otherwise the deterministic
+    synthetic-demo fallback — the same credential gate `factor-engine`'s export
+    uses, so the website seam and the ORCH-01 equity clock always have something
+    to read (labeled `data_provenance`) even with no key configured. The two
+    provenances are never mixed within one export."""
+    if os.environ.get("TIINGO_API_KEY", "").strip():
+        from ie.adapters.prices_tiingo import TiingoClient
+
+        return TiingoClient(), "live"
+    from ie.synthetic import SyntheticPriceClient
+
+    return SyntheticPriceClient(), "synthetic-demo"
 
 SCHEMA_VERSION = "1.0.0"
 DISCLAIMER = (
@@ -42,7 +57,7 @@ def _drop_unsettled(df):
 
 
 def build_export() -> dict:
-    client = TiingoClient()
+    client, provenance = _price_client()
     start = date.fromisoformat(HISTORY_START)
     prices = {
         t: _drop_unsettled(bars_to_frame(client.fetch_prices(t, start=start)))
@@ -73,6 +88,7 @@ def build_export() -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "as_of": as_of,
         "universe": list(UNIVERSE),
+        "data_provenance": provenance,
         "disclaimer": DISCLAIMER,
         "plans": plans,
     }

@@ -59,6 +59,14 @@ jobs:
           # scripts/run_clock.py's own market-hours-gate import chain needs
           # networkx (scheduler.py) — not covered by either engine above.
           pip install networkx
+          # engine/incepta stores its point-in-time SEC facts in DuckDB
+          # (engine/incepta/store/duckdb_store.py imports `duckdb` at module
+          # load), so `incepta.cli` cannot even be imported without it. Not in
+          # any engine requirements.txt above. Without this the incepta jobs
+          # fail with ModuleNotFoundError before their SEC_USER_AGENT gate is
+          # ever reached; with it they either run (when SEC_USER_AGENT is set)
+          # or cleanly skip (when it is not — see scripts/run_clock.py).
+          pip install duckdb
 
       - name: Run the equity clock
         run: python scripts/run_clock.py equity

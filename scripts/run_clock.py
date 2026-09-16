@@ -128,15 +128,26 @@ ENGINE_JOBS: dict[str, list[dict]] = {
         # DuckDB store persists across a fresh GitHub Actions runner (see the
         # module docstring above). Two sequential ENGINE_JOBS entries, same
         # 5-ticker universe already live in public/data/incepta/latest.json.
+        # Incepta is a REAL SEC-fundamentals model — its whole point is
+        # point-in-time EDGAR facts, so unlike the price engines above it has
+        # no honest synthetic fallback (fabricating SEC filings is exactly what
+        # this repo refuses to do). It needs `SEC_USER_AGENT` (the SEC-mandated
+        # contact User-Agent) present to fetch anything at all. When that
+        # credential is absent — e.g. a plain scheduled CI run with no secret
+        # configured — these two jobs are a clean, logged SKIP, not a failure:
+        # the clock stays green and the offline engines above still refresh.
+        # Set SEC_USER_AGENT (see clock-equity.yml) to activate the real run.
         {
             "name": "incepta_ingest",
             "cwd": REPO_ROOT / "engine",
             "cmd": [sys.executable, "-m", "incepta.cli", "ingest", "AAPL", "MSFT", "NVDA", "KO", "F"],
+            "requires_env": ["SEC_USER_AGENT"],
         },
         {
             "name": "incepta_export",
             "cwd": REPO_ROOT / "engine",
             "cmd": [sys.executable, "-m", "incepta.cli", "export", "AAPL", "MSFT", "NVDA", "KO", "F"],
+            "requires_env": ["SEC_USER_AGENT"],
         },
     ],
     "chaos": [
@@ -152,10 +163,30 @@ class EngineResult:
     detail: str
     returncode: int | None
     output_tail: str
+    skipped: bool = False  # credential-gated clean skip — never a failure
 
 
 def run_engine_job(job: dict) -> EngineResult:
-    """Invoke one engine's export entry point as a real subprocess."""
+    """Invoke one engine's export entry point as a real subprocess.
+
+    A job may declare `requires_env`: environment variables that must be
+    present for it to do real work. If any is missing the job is a clean,
+    logged SKIP (not a failure) — an engine that can only produce a live read
+    from a real credential should not turn the whole clock red just because
+    that credential is absent in this environment. Engines with an honest
+    synthetic-demo fallback do not declare `requires_env` at all; they always
+    run.
+    """
+    missing = [v for v in job.get("requires_env", []) if not os.environ.get(v, "").strip()]
+    if missing:
+        return EngineResult(
+            job["name"],
+            success=True,
+            detail=f"skipped: required env not set ({', '.join(missing)})",
+            returncode=None,
+            output_tail="",
+            skipped=True,
+        )
     env = os.environ.copy()
     try:
         proc = subprocess.run(
@@ -322,21 +353,30 @@ def main(argv: list[str] | None = None) -> int:
         "market_hours_gate": {"allowed": allowed, "reason": reason},
         "overall_status": "success" if all_ok else "failed",
         "engines": [
-            {"name": r.name, "success": r.success, "detail": r.detail, "returncode": r.returncode}
+            {
+                "name": r.name,
+                "success": r.success,
+                "skipped": r.skipped,
+                "detail": r.detail,
+                "returncode": r.returncode,
+            }
             for r in results
         ],
     }
     append_run_log(clock_name, record)
 
+    n_skipped = sum(1 for r in results if r.skipped)
     print(f"[{clock_name}] running {len(results)} engine(s) for real (market-hours gate: {reason}).")
     for r in results:
-        status = "OK" if r.success else "FAILED"
+        status = "SKIP" if r.skipped else ("OK" if r.success else "FAILED")
         print(f"  - {r.name}: {status} ({r.detail})")
         if not r.success and r.output_tail:
             print(textwrap.indent(r.output_tail, "      "))
 
     if all_ok:
-        print(f"[{clock_name}] all {len(results)} engine(s) ran successfully.")
+        ran = len(results) - n_skipped
+        skip_note = f" ({n_skipped} credential-gated skip{'s' if n_skipped != 1 else ''})" if n_skipped else ""
+        print(f"[{clock_name}] {ran} engine(s) ran successfully{skip_note}.")
         return 0
     print(f"[{clock_name}] one or more engines FAILED — see output above.")
     return 1
