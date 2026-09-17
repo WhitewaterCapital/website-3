@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-11T14:09:40.693485+00:00",
-  "as_of": "2021-02-12",
+  "generated_at": "2026-09-17T14:39:35.726369+00:00",
+  "as_of": "2026-09-11",
   "universe": [
     "AAPL",
     "MSFT",
