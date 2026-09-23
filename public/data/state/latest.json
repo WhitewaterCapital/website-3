@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-09-22T16:33:07.818807",
-  "as_of": "2026-09-22",
+  "generated_at": "2026-09-23T16:23:07.307084",
+  "as_of": "2026-09-23",
   "state_vector": {
     "schema_version": "1.0.0",
     "element_order": [
@@ -14,7 +14,7 @@
       "slippage",
       "liquidity"
     ],
-    "as_of": "2026-09-22",
+    "as_of": "2026-09-23",
     "volatility": {
       "available": true,
       "value": 0.17463409555297138,
