@@ -1,8 +1,8 @@
 {
   "schema_version": "0.1.0",
   "engine_version": "0.1.0",
-  "generated_at": "2026-10-26T09:39:17.846514+00:00",
-  "as_of": "2026-10-26",
+  "generated_at": "2026-10-27T13:55:26.437009+00:00",
+  "as_of": "2026-10-27",
   "config": {
     "prior_pseudo_obs": 60.0,
     "uncertainty_penalty": 1.0,
